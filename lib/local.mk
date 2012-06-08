@@ -42,8 +42,9 @@ lib_libbison_a_SOURCES +=                       \
 # timevars, stolen from GCC.
 lib_libbison_a_SOURCES +=                       \
   lib/timevar.h                                 \
-  lib/timevar.c                                 \
-  lib/timevar.def
+  lib/timevar.c
+
+EXTRA_DIST += lib/timevar.def
 
 # Non-gnulib sources in Bison's internal library.
 lib_libbison_a_SOURCES +=                       \

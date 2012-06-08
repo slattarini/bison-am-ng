@@ -33,21 +33,15 @@ AC_DEFINE_UNQUOTED([PACKAGE_COPYRIGHT_YEAR], [$PACKAGE_COPYRIGHT_YEAR],
 AC_CONFIG_AUX_DIR([build-aux])
 AC_CONFIG_MACRO_DIR([m4])
 
-# Automake 1.10.3 and 1.11.1 fix a security flaw discussed here:
-#
-#   http://thread.gmane.org/gmane.comp.sysutils.autotools.announce/131
-#
-# To avoid 1.11, we make 1.11.1 the minimum version.
-#
+# We require Automake-NG, hence the 'ng' otpion to prevent mainline
+# automake from being used for mistake.
 # We want gnits strictness only when rolling a stable release.  For
 # release candidates, we use version strings like 2.4.3_rc1, but gnits
 # doesn't like that, so we let the underscore disable gnits.  Between
 # releases, we want to be able run make dist without being required to
 # add a bogus NEWS entry.  In that case, the version string
 # automatically contains a dash, which we also let disable gnits.
-AM_INIT_AUTOMAKE([1.11.1 dist-xz nostdinc
-                 color-tests parallel-tests
-                 silent-rules]
+AM_INIT_AUTOMAKE([1.12a ng dist-xz nostdinc silent-rules]
                  m4_bmatch(m4_defn([AC_PACKAGE_VERSION]), [[-_]],
                            [gnu], [gnits]))
 AM_SILENT_RULES([yes])
