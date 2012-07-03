@@ -1,11 +1,10 @@
 /*.a
-/*.bak
 /*.o
-/*~
 /.deps
 /.dirstamp
 /Makefile
 /Makefile.in
+/glthread/
 /alignof.h
 /alloca.h
 /alloca.in.h

@@ -1,8 +1,9 @@
+*~
+*.bak
 /.am/
 /*.cache
 /*.flc
 /*.prj
-/*~
 /.tarball-version
 /.version
 /ABOUT-NLS
@@ -15,9 +16,8 @@
 /README-release
 /_*
 /a.exe
-/a.out
+/[ab].out
 /aclocal.m4
-/b.out
 /bison-*
 /conf[0-9]*
 /confdefs*
@@ -33,4 +33,3 @@
 /patches
 /releases
 /stamp-h*
-/doc/bison.t2[dp]/
