@@ -20,11 +20,6 @@ doc_bison_TEXINFOS =                            \
   doc/fdl.texi                                  \
   doc/gpl-3.0.texi
 
-TEXI2DVI = texi2dvi --build-dir=doc/bison.t2d
-CLEANDIRS = doc/bison.t2d
-clean-local:
-	rm -rf $(CLEANDIRS)
-
 MOSTLYCLEANFILES += $(top_srcdir)/doc/*.t
 
 CROSS_OPTIONS_PL = $(top_srcdir)/build-aux/cross-options.pl
@@ -138,4 +133,6 @@ CLEANFILES += doc/Doxyfile
 doc/Doxyfile: $(top_srcdir)/doc/Doxyfile.in
 	$(AM_V_GEN) $(edit) $(top_srcdir)/doc/Doxyfile.in >doc/Doxyfile
 
-CLEANDIRS += doc/html
+CLEANDIRS = doc/html
+clean-local:
+	rm -rf $(CLEANDIRS)
