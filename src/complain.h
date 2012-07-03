@@ -25,63 +25,51 @@
 extern "C" {
 # endif
 
+/*-------------.
+| --warnings.  |
+`-------------*/
+
+typedef enum
+  {
+    Wnone             = 0,       /**< Issue no warnings.  */
+    Wmidrule_values   = 1 << 0,  /**< Unset or unused midrule values.  */
+    Wyacc             = 1 << 1,  /**< POSIXME.  */
+    Wconflicts_sr     = 1 << 2,  /**< S/R conflicts.  */
+    Wconflicts_rr     = 1 << 3,  /**< R/R conflicts.  */
+    Wother            = 1 << 4,  /**< All other warnings.  */
+
+    Werror            = 1 << 10, /**< Warnings are treated as errors.  */
+    complaint         = 1 << 11, /**< All complaints.  */
+    fatal             = 1 << 12, /**< All fatal errors.  */
+    silent            = 1 << 13, /**< Do not display the warning type.  */
+    Wall              = ~Werror  /**< All above warnings.  */
+  } warnings;
+
+/** What warnings are issued.  */
+extern warnings warnings_flag;
+
+/** Display a "[-Wyacc]" like message on stderr.  */
+void warnings_print_categories (warnings warn_flags);
+
 /** Record that a warning is about to be issued, and treat it as an
-    error if <tt>warnings_flag & warnings_error</tt>.  This is exported
+    error if <tt>warnings_flag & Werror</tt>.  This is exported
     only for the sake of Yacc-compatible conflict reports in conflicts.c.
     All other warnings should be implemented in complain.c and should use
     the normal warning format.  */
 void set_warning_issued (void);
 
-/** Informative messages, but we proceed.  Report iff
-    <tt>warnings_flag & warnings_other</tt>.  */
-
-void warn (char const *format, ...)
-  __attribute__ ((__format__ (__printf__, 1, 2)));
-
-void warn_at (location loc, char const *format, ...)
+/** Make a complaint, but don't specify any location.  */
+void complain (warnings flags, char const *message, ...)
   __attribute__ ((__format__ (__printf__, 2, 3)));
 
-/* Generate a message aligned by an indent.
-   When *indent == 0, assign message's indent to *indent,
-   When *indent > 0, align the message by *indent value. */
-void warn_at_indent (location loc, unsigned *indent,
-                     char const *format, ...)
+/** Make a complaint with location.  */
+void complain_at (location loc, warnings flags, char const *message, ...)
   __attribute__ ((__format__ (__printf__, 3, 4)));
 
-/** An error, but we continue and die later.  */
-
-void complain (char const *format, ...)
-  __attribute__ ((__format__ (__printf__, 1, 2)));
-
-void complain_at (location loc, char const *format, ...)
-  __attribute__ ((__format__ (__printf__, 2, 3)));
-
-/* Generate a message aligned by an indent.
-   When *indent == 0, assign message's indent to *indent,
-   When *indent > 0, align the message by *indent value. */
-void complain_at_indent (location loc, unsigned *indent,
-                         char const *format, ...)
-  __attribute__ ((__format__ (__printf__, 3, 4)));
-
-/** An incompatibility with POSIX Yacc: mapped either to warn* or
-    complain* depending on yacc_flag. */
-
-void yacc_at (location loc, char const *format, ...)
-  __attribute__ ((__format__ (__printf__, 2, 3)));
-
-/** A midrule-value warning.  Report iff
-    <tt>warnings_flag & warnings_midrule_values</tt>.  */
-
-void midrule_value_at (location loc, char const *format, ...)
-  __attribute__ ((__format__ (__printf__, 2, 3)));
-
-/** A fatal error, causing immediate exit.  */
-
-void fatal (char const *format, ...)
-  __attribute__ ((__noreturn__, __format__ (__printf__, 1, 2)));
-
-void fatal_at (location loc, char const *format, ...)
-  __attribute__ ((__noreturn__, __format__ (__printf__, 2, 3)));
+/** Make a complaint with location and some indentation.  */
+void complain_at_indent (location loc, warnings flags, unsigned *indent,
+                         char const *message, ...)
+  __attribute__ ((__format__ (__printf__, 4, 5)));
 
 /** Whether an error was reported.  */
 extern bool complaint_issued;

@@ -23,7 +23,6 @@
 
 #include <concat-filename.h>
 #include <configmake.h>
-#include <error.h>
 #include <filename.h>
 #include <get-errno.h>
 #include <quotearg.h>
@@ -42,8 +41,6 @@
 #include "scan-skel.h"
 #include "symtab.h"
 #include "tables.h"
-
-# define ARRAY_CARDINALITY(Array) (sizeof (Array) / sizeof *(Array))
 
 static struct obstack format_obstack;
 
@@ -143,7 +140,6 @@ escaped_output (FILE *out, char const *string)
 static void
 prepare_symbols (void)
 {
-  MUSCLE_INSERT_BOOL ("token_table", token_table_flag);
   MUSCLE_INSERT_INT ("tokens_number", ntokens);
   MUSCLE_INSERT_INT ("nterms_number", nvars);
   MUSCLE_INSERT_INT ("symbols_number", nsyms);
@@ -403,9 +399,16 @@ prepare_symbol_definitions (void)
       const char *key;
       const char *value;
 
-#define SET_KEY(Entry)                                                  \
-      obstack_fgrow2 (&format_obstack, "symbol(%d, %s)", i, Entry);     \
-      obstack_1grow (&format_obstack, 0);                               \
+#define SET_KEY(Entry)                                          \
+      obstack_fgrow2 (&format_obstack, "symbol(%d, %s)",        \
+                      i, Entry);                                \
+      obstack_1grow (&format_obstack, 0);                       \
+      key = obstack_finish (&format_obstack);
+
+#define SET_KEY2(Entry, Suffix)                                 \
+      obstack_fgrow3 (&format_obstack, "symbol(%d, %s_%s)",     \
+                      i, Entry, Suffix);                        \
+      obstack_1grow (&format_obstack, 0);                       \
       key = obstack_finish (&format_obstack);
 
       // Whether the symbol has an identifier.
@@ -437,28 +440,30 @@ prepare_symbol_definitions (void)
       SET_KEY("type");
       MUSCLE_INSERT_STRING (key, sym->type_name ? sym->type_name : "");
 
-#define CODE_PROP(PropName)                                             \
-      do {                                                              \
-        code_props const *p = symbol_ ## PropName ## _get (sym);        \
-        SET_KEY("has_" #PropName);                                      \
-        MUSCLE_INSERT_INT (key, !!p->code);                             \
-                                                                        \
-        if (p->code)                                                    \
-          {                                                             \
-            SET_KEY(#PropName "_file");                                 \
-            MUSCLE_INSERT_STRING (key, p->location.start.file);         \
-                                                                        \
-            SET_KEY(#PropName "_line");                                 \
-            MUSCLE_INSERT_INT (key, p->location.start.line);            \
-                                                                        \
-            SET_KEY(#PropName);                                         \
-            MUSCLE_INSERT_STRING_RAW (key, p->code);                    \
-          }                                                             \
-      } while (0)
+      {
+        int j;
+        for (j = 0; j < CODE_PROPS_SIZE; ++j)
+          {
+            /* "printer", not "%printer".  */
+            char const *pname = code_props_type_string (j) + 1;
+            code_props const *p = symbol_code_props_get (sym, j);
+            SET_KEY2("has", pname);
+            MUSCLE_INSERT_INT (key, !!p->code);
 
-      CODE_PROP(destructor);
-      CODE_PROP(printer);
-#undef CODE_PROP
+            if (p->code)
+              {
+                SET_KEY2(pname, "file");
+                MUSCLE_INSERT_STRING (key, p->location.start.file);
+
+                SET_KEY2(pname, "line");
+                MUSCLE_INSERT_INT (key, p->location.start.line);
+
+                SET_KEY(pname);
+                MUSCLE_INSERT_STRING_RAW (key, p->code);
+              }
+          }
+      }
+#undef SET_KEY2
 #undef SET_KEY
     }
 }
@@ -571,7 +576,6 @@ static void
 output_skeleton (void)
 {
   int filter_fd[2];
-  char const *argv[10];
   pid_t pid;
 
   /* Compute the names of the package data dir and skeleton files.  */
@@ -580,8 +584,8 @@ output_skeleton (void)
   char *m4sugar = xconcatenated_filename (datadir, "m4sugar/m4sugar.m4", NULL);
   char *m4bison = xconcatenated_filename (datadir, "bison.m4", NULL);
   char *skel = (IS_PATH_WITH_DIR (skeleton)
-		? xstrdup (skeleton)
-		: xconcatenated_filename (datadir, skeleton, NULL));
+                ? xstrdup (skeleton)
+                : xconcatenated_filename (datadir, skeleton, NULL));
 
   /* Test whether m4sugar.m4 is readable, to check for proper
      installation.  A faulty installation can cause deadlock, so a
@@ -602,6 +606,7 @@ output_skeleton (void)
      <http://lists.gnu.org/archive/html/bug-bison/2008-07/msg00000.html>
      for details.  */
   {
+    char const *argv[10];
     int i = 0;
     argv[i++] = m4;
 
@@ -627,11 +632,12 @@ output_skeleton (void)
     argv[i++] = skel;
     argv[i++] = NULL;
     aver (i <= ARRAY_CARDINALITY (argv));
+
+    /* The ugly cast is because gnulib gets the const-ness wrong.  */
+    pid = create_pipe_bidi ("m4", m4, (char **)(void*)argv, false, true,
+                            true, filter_fd);
   }
 
-  /* The ugly cast is because gnulib gets the const-ness wrong.  */
-  pid = create_pipe_bidi ("m4", m4, (char **)(void*)argv, false, true,
-                          true, filter_fd);
   free (m4sugar);
   free (m4bison);
   free (skel);
@@ -639,10 +645,7 @@ output_skeleton (void)
   if (trace_flag & trace_muscles)
     muscles_output (stderr);
   {
-    FILE *out = fdopen (filter_fd[1], "w");
-    if (! out)
-      error (EXIT_FAILURE, get_errno (),
-             "fdopen");
+    FILE *out = xfdopen (filter_fd[1], "w");
     muscles_output (out);
     xfclose (out);
   }
@@ -650,10 +653,7 @@ output_skeleton (void)
   /* Read and process m4's output.  */
   timevar_push (TV_M4);
   {
-    FILE *in = fdopen (filter_fd[0], "r");
-    if (! in)
-      error (EXIT_FAILURE, get_errno (),
-	     "fdopen");
+    FILE *in = xfdopen (filter_fd[0], "r");
     scan_skel (in);
     /* scan_skel should have read all of M4's output.  Otherwise, when we
        close the pipe, we risk letting M4 report a broken-pipe to the
@@ -679,6 +679,7 @@ prepare (void)
   MUSCLE_INSERT_BOOL ("nondeterministic_flag", nondeterministic_parser);
   MUSCLE_INSERT_BOOL ("synclines_flag", !no_lines_flag);
   MUSCLE_INSERT_BOOL ("tag_seen_flag", tag_seen);
+  MUSCLE_INSERT_BOOL ("token_table_flag", token_table_flag);
   MUSCLE_INSERT_BOOL ("use_push_for_pull_flag", use_push_for_pull_flag);
   MUSCLE_INSERT_BOOL ("yacc_flag", yacc_flag);
 

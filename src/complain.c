@@ -29,15 +29,43 @@
 #include "files.h"
 #include "getargs.h"
 
+warnings warnings_flag = Wconflicts_sr | Wconflicts_rr | Wother;
+
 bool complaint_issued;
 static unsigned *indent_ptr = 0;
 
-
+void
+warnings_print_categories (warnings warn_flags)
+{
+  if (! (warn_flags & silent))
+    {
+      char const *warn_names[] =
+        {
+          "midrule-values",
+          "yacc",
+          "conflicts-sr",
+          "conflicts-rr",
+          "other"
+        };
+
+      bool any = false;
+      int i;
+      for (i = 0; i < ARRAY_CARDINALITY (warn_names); ++i)
+        if (warn_flags & 1 << i)
+          {
+            fprintf (stderr, "%s-W%s", any ? ", " : " [", warn_names[i]);
+            any = true;
+          }
+      if (any)
+        fprintf (stderr, "]");
+    }
+}
 
 /** Report an error message.
  *
  * \param loc     the location, defaulting to the current file,
  *                or the program name.
+ * \param flags   the category for this message.
  * \param prefix  put before the message (e.g., "warning").
  * \param message the error message, a printf format string.  Iff it
  *                ends with ": ", then no trailing newline is printed,
@@ -47,10 +75,10 @@ static unsigned *indent_ptr = 0;
  */
 static
 void
-error_message (location *loc,
-               const char *prefix,
+error_message (const location *loc, warnings flags, const char *prefix,
                const char *message, va_list args)
 {
+  (void) flags;
   unsigned pos = 0;
 
   if (loc)
@@ -72,24 +100,82 @@ error_message (location *loc,
     fprintf (stderr, "%s: ", prefix);
 
   vfprintf (stderr, message, args);
+  warnings_print_categories (flags);
   {
     size_t l = strlen (message);
-    if (l < 2 || message[l-2] != ':' || message[l-1] != ' ') {
-      putc ('\n', stderr);
-      fflush (stderr);
-    }
+    if (l < 2 || message[l-2] != ':' || message[l-1] != ' ')
+      {
+        putc ('\n', stderr);
+        fflush (stderr);
+      }
   }
 }
 
-/** Wrap error_message() with varargs handling. */
-#define ERROR_MESSAGE(Loc, Prefix, Message)     \
-{                                               \
-  va_list args;                                 \
-  va_start (args, Message);                     \
-  error_message (Loc, Prefix, Message, args);   \
-  va_end (args);                                \
+/** Raise a complaint. That can be a fatal error, a complaint or just a
+    warning.  */
+
+static inline void
+complains (const location *loc, warnings flags, const char *message,
+           va_list args)
+{
+  if (flags & complaint)
+    {
+      error_message (loc, complaint, NULL, message, args);
+      complaint_issued = true;
+    }
+  else if (flags & fatal)
+    {
+      error_message (loc, fatal, _("fatal error"), message, args);
+      exit (EXIT_FAILURE);
+    }
+  else if (flags & Wyacc)
+    {
+      if (yacc_flag)
+        {
+          error_message (loc, flags, NULL, message, args);
+          complaint_issued = true;
+        }
+      else if (warnings_flag & Wyacc)
+        {
+          set_warning_issued ();
+          error_message (loc, flags, _("warning"), message, args);
+        }
+    }
+  else if (warnings_flag & flags)
+    {
+      set_warning_issued ();
+      error_message (loc, flags, _("warning"), message, args);
+    }
 }
 
+void
+complain (warnings flags, const char *message, ...)
+{
+  va_list args;
+  va_start (args, message);
+  complains (NULL, flags, message, args);
+  va_end (args);
+}
+
+void
+complain_at (location loc, warnings flags, const char *message, ...)
+{
+  va_list args;
+  va_start (args, message);
+  complains (&loc, flags, message, args);
+  va_end (args);
+}
+
+void complain_at_indent (location loc, warnings flags, unsigned *indent,
+                         const char *message, ...)
+{
+  indent_ptr = indent;
+
+  va_list args;
+  va_start (args, message);
+  complains (&loc, flags, message, args);
+  va_end (args);
+}
 
 /*--------------------------------.
 | Report a warning, and proceed.  |
@@ -99,115 +185,10 @@ void
 set_warning_issued (void)
 {
   static bool warning_issued = false;
-  if (!warning_issued && (warnings_flag & warnings_error))
+  if (!warning_issued && (warnings_flag & Werror))
     {
       fprintf (stderr, "%s: warnings being treated as errors\n", program_name);
       complaint_issued = true;
     }
   warning_issued = true;
-}
-
-void
-warn_at (location loc, const char *message, ...)
-{
-  if (!(warnings_flag & warnings_other))
-    return;
-  set_warning_issued ();
-  ERROR_MESSAGE (&loc, _("warning"), message);
-}
-
-void
-warn_at_indent (location loc, unsigned *indent,
-                const char *message, ...)
-{
-  if (!(warnings_flag & warnings_other))
-    return;
-  set_warning_issued ();
-  indent_ptr = indent;
-  ERROR_MESSAGE (&loc, _("warning"), message);
-}
-
-void
-warn (const char *message, ...)
-{
-  if (!(warnings_flag & warnings_other))
-    return;
-  set_warning_issued ();
-  ERROR_MESSAGE (NULL, _("warning"), message);
-}
-
-
-/*-----------------------------------------------------------.
-| An error has occurred, but we can proceed, and die later.  |
-`-----------------------------------------------------------*/
-
-void
-complain_at (location loc, const char *message, ...)
-{
-  ERROR_MESSAGE (&loc, NULL, message);
-  complaint_issued = true;
-}
-
-void
-complain_at_indent (location loc, unsigned *indent,
-                    const char *message, ...)
-{
-  indent_ptr = indent;
-  ERROR_MESSAGE (&loc, NULL, message);
-  complaint_issued = true;
-}
-
-void
-complain (const char *message, ...)
-{
-  ERROR_MESSAGE (NULL, NULL, message);
-  complaint_issued = true;
-}
-
-
-/*--------------------------------------------------------------.
-| An incompatibility with POSIX Yacc: mapped either to warn* or |
-| complain* depending on yacc_flag.                             |
-`--------------------------------------------------------------*/
-
-void
-yacc_at (location loc, const char *message, ...)
-{
-  if (yacc_flag)
-    {
-      ERROR_MESSAGE (&loc, NULL, message);
-      complaint_issued = true;
-    }
-  else if (warnings_flag & warnings_yacc)
-    {
-      set_warning_issued ();
-      ERROR_MESSAGE (&loc, _("warning"), message);
-    }
-}
-
-void
-midrule_value_at (location loc, const char *message, ...)
-{
-  if (!(warnings_flag & warnings_midrule_values))
-    return;
-  set_warning_issued ();
-  ERROR_MESSAGE (&loc, _("warning"), message);
-}
-
-/*-------------------------------------------------.
-| A severe error has occurred, we cannot proceed.  |
-`-------------------------------------------------*/
-
-void
-fatal_at (location loc, const char *message, ...)
-{
-  ERROR_MESSAGE (&loc, _("fatal error"), message);
-  exit (EXIT_FAILURE);
-}
-
-void
-fatal (const char *message, ...)
-{
-  ERROR_MESSAGE (NULL, _("fatal error"), message);
-  exit (EXIT_FAILURE);
 }

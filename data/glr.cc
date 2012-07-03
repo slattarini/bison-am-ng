@@ -226,8 +226,7 @@ b4_copyright([Skeleton interface for Bison GLR parsers in C++],
 
 /* C++ GLR parser skeleton written by Akim Demaille.  */
 
-#ifndef PARSER_HEADER_H
-# define PARSER_HEADER_H
+]b4_cpp_guard_open([b4_spec_defines_file])[
 
 ]b4_percent_code_get([[requires]])[
 
@@ -236,9 +235,6 @@ b4_copyright([Skeleton interface for Bison GLR parsers in C++],
 #include <iostream>
 ]b4_percent_define_ifdef([[location_type]], [],
                          [[#include "location.hh"]])[
-
-/* Using locations.  */
-#define YYLSP_NEEDED ]b4_locations_if([1], [0])[
 
 /* Enabling traces.  */
 #ifndef YYDEBUG
@@ -325,16 +321,14 @@ b4_copyright([Skeleton interface for Bison GLR parsers in C++],
 b4_percent_define_flag_if([[global_tokens_and_yystype]],
 [b4_token_defines(b4_tokens)])
 [
-#ifndef YYSTYPE
-# define YYSTYPE ]b4_namespace_ref[::]b4_parser_class_name[::semantic_type
+#ifndef ]b4_api_PREFIX[STYPE
+# define ]b4_api_PREFIX[STYPE ]b4_namespace_ref[::]b4_parser_class_name[::semantic_type
 #endif
-#ifndef YYLTYPE
-# define YYLTYPE ]b4_namespace_ref[::]b4_parser_class_name[::location_type
+#ifndef ]b4_api_PREFIX[LTYPE
+# define ]b4_api_PREFIX[LTYPE ]b4_namespace_ref[::]b4_parser_class_name[::location_type
 #endif
 
 ]b4_namespace_close[
-
-]b4_percent_code_get([[provides]])[]dnl
-
-[#endif /* ! defined PARSER_HEADER_H */]
-m4_divert_pop(0)
+]b4_percent_code_get([[provides]])[
+]b4_cpp_guard_close([b4_spec_defines_file])[
+]m4_divert_pop(0)

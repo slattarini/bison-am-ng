@@ -105,11 +105,10 @@ rule_rhs_print (rule *r, FILE *out)
       item_number *rp;
       for (rp = r->rhs; *rp >= 0; rp++)
         fprintf (out, " %s", symbols[*rp]->tag);
-      fputc ('\n', out);
     }
   else
     {
-      fprintf (out, " /* %s */\n", _("empty"));
+      fprintf (out, " /* %s */", _("empty"));
     }
 }
 
@@ -133,7 +132,7 @@ rule_rhs_print_xml (rule *r, FILE *out, int level)
     }
 }
 
-void
+static void
 rule_print (rule *r, FILE *out)
 {
   fprintf (out, "%s:", r->lhs->tag);
@@ -189,6 +188,7 @@ grammar_rules_partial_print (FILE *out, const char *title,
       first = false;
       rule_lhs_print (&rules[r], previous_lhs, out);
       rule_rhs_print (&rules[r], out);
+      fprintf (out, "\n");
       previous_lhs = rules[r].lhs;
     }
   if (!first)
@@ -296,6 +296,7 @@ grammar_dump (FILE *out, const char *title)
       {
         fprintf (out, "%-5d  ", r);
         rule_print (&rules[r], out);
+        fprintf (out, "\n");
       }
   }
   fprintf (out, "\n\n");
@@ -304,17 +305,19 @@ grammar_dump (FILE *out, const char *title)
 void
 grammar_rules_useless_report (const char *message)
 {
-  rule_number r;
-  for (r = 0; r < nrules ; ++r)
-    if (!rules[r].useful)
-      {
-        warn_at (rules[r].location, "%s: ", message);
-        if (warnings_flag & warnings_other)
+  warnings w = Wother;
+  if (warnings_flag & w)
+    {
+      rule_number r;
+      for (r = 0; r < nrules ; ++r)
+        if (!rules[r].useful)
           {
+            complain_at (rules[r].location, w | silent, "%s: ", message);
             rule_print (&rules[r], stderr);
-            fflush (stderr);
+            warnings_print_categories (w);
+            fprintf (stderr, "\n");
           }
-      }
+    }
 }
 
 void

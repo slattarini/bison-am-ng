@@ -285,13 +285,12 @@ reduce_grammar_tables (void)
 static void
 nonterminals_reduce (void)
 {
-  symbol_number i, n;
-
   /* Map the nonterminals to their new index: useful first, useless
      afterwards.  Kept for later report.  */
 
   symbol_number *nontermmap = xnmalloc (nvars, sizeof *nontermmap);
-  n = ntokens;
+  symbol_number n = ntokens;
+  symbol_number i;
   for (i = ntokens; i < nsyms; i++)
     if (bitset_test (V, i))
       nontermmap[i - ntokens] = n++;
@@ -299,8 +298,10 @@ nonterminals_reduce (void)
     if (!bitset_test (V, i))
       {
         nontermmap[i - ntokens] = n++;
-        warn_at (symbols[i]->location, _("nonterminal useless in grammar: %s"),
-                 symbols[i]->tag);
+        if (symbols[i]->status != used)
+          complain_at (symbols[i]->location, Wother,
+                       _("nonterminal useless in grammar: %s"),
+                       symbols[i]->tag);
       }
 
 
@@ -382,15 +383,15 @@ static void
 reduce_print (void)
 {
   if (nuseless_nonterminals > 0)
-    warn (ngettext ("%d nonterminal useless in grammar",
-                    "%d nonterminals useless in grammar",
-                    nuseless_nonterminals),
-          nuseless_nonterminals);
+    complain (Wother, ngettext ("%d nonterminal useless in grammar",
+                                "%d nonterminals useless in grammar",
+                                nuseless_nonterminals),
+              nuseless_nonterminals);
   if (nuseless_productions > 0)
-    warn (ngettext ("%d rule useless in grammar",
-                    "%d rules useless in grammar",
-                    nuseless_productions),
-          nuseless_productions);
+    complain (Wother, ngettext ("%d rule useless in grammar",
+                                "%d rules useless in grammar",
+                                nuseless_productions),
+              nuseless_productions);
 }
 
 void
@@ -415,9 +416,9 @@ reduce_grammar (void)
   reduce_print ();
 
   if (!bitset_test (N, accept->number - ntokens))
-    fatal_at (startsymbol_location,
-              _("start symbol %s does not derive any sentence"),
-              startsymbol->tag);
+    complain_at (startsymbol_location, fatal,
+                 _("start symbol %s does not derive any sentence"),
+                 startsymbol->tag);
 
   /* First reduce the nonterminals, as they renumber themselves in the
      whole grammar.  If you change the order, nonterms would be
@@ -431,8 +432,8 @@ reduce_grammar (void)
     {
       grammar_dump (stderr, "Reduced Grammar");
 
-      fprintf (stderr, "reduced %s defines %d terminals, %d nonterminals\
-, and %d productions.\n",
+      fprintf (stderr, "reduced %s defines %d terminals, %d nonterminals"
+               ", and %d productions.\n",
                grammar_file, ntokens, nvars, nrules);
     }
 }

@@ -33,6 +33,7 @@
 `-------------------------------------------------------------------*/
 
 static symbol **symbols_sorted = NULL;
+static symbol **semantic_types_sorted = NULL;
 
 /*------------------------.
 | Distinguished symbols.  |
@@ -49,10 +50,16 @@ location startsymbol_location;
 | Default %destructor's and %printer's.  |
 `---------------------------------------*/
 
-static code_props default_tagged_destructor = CODE_PROPS_NONE_INIT;
-static code_props default_tagless_destructor = CODE_PROPS_NONE_INIT;
-static code_props default_tagged_printer = CODE_PROPS_NONE_INIT;
-static code_props default_tagless_printer = CODE_PROPS_NONE_INIT;
+static code_props default_tagged_code_props[CODE_PROPS_SIZE] =
+  {
+    CODE_PROPS_NONE_INIT,
+    CODE_PROPS_NONE_INIT,
+  };
+static code_props default_tagless_code_props[CODE_PROPS_SIZE] =
+  {
+    CODE_PROPS_NONE_INIT,
+    CODE_PROPS_NONE_INIT,
+  };
 
 /*---------------------------------.
 | Create a new symbol, named TAG.  |
@@ -68,15 +75,15 @@ symbol_new (uniqstr tag, location loc)
   /* If the tag is not a string (starts with a double quote), check
      that it is valid for Yacc. */
   if (tag[0] != '\"' && tag[0] != '\'' && strchr (tag, '-'))
-    yacc_at (loc, _("POSIX Yacc forbids dashes in symbol names: %s"),
-             tag);
+    complain_at (loc, Wyacc,
+                 _("POSIX Yacc forbids dashes in symbol names: %s"), tag);
 
   res->tag = tag;
   res->location = loc;
 
   res->type_name = NULL;
-  code_props_none_init (&res->destructor);
-  code_props_none_init (&res->printer);
+  for (int i = 0; i < CODE_PROPS_SIZE; ++i)
+    code_props_none_init (&res->props[i]);
 
   res->number = NUMBER_UNDEFINED;
   res->prec = 0;
@@ -85,13 +92,26 @@ symbol_new (uniqstr tag, location loc)
 
   res->alias = NULL;
   res->class = unknown_sym;
-  res->declared = false;
+  res->status = undeclared;
 
   if (nsyms == SYMBOL_NUMBER_MAXIMUM)
-    fatal (_("too many symbols in input grammar (limit is %d)"),
-           SYMBOL_NUMBER_MAXIMUM);
+    complain (fatal, _("too many symbols in input grammar (limit is %d)"),
+              SYMBOL_NUMBER_MAXIMUM);
   nsyms++;
   return res;
+}
+
+char const *
+code_props_type_string (code_props_type kind)
+{
+  switch (kind)
+    {
+    case destructor:
+      return "%destructor";
+    case printer:
+      return "%printer";
+    }
+  assert (0);
 }
 
 /*----------------------------------------.
@@ -99,14 +119,16 @@ symbol_new (uniqstr tag, location loc)
 `----------------------------------------*/
 
 static semantic_type *
-semantic_type_new (uniqstr tag)
+semantic_type_new (uniqstr tag, const location *loc)
 {
   semantic_type *res = xmalloc (sizeof *res);
 
   uniqstr_assert (tag);
   res->tag = tag;
-  code_props_none_init (&res->destructor);
-  code_props_none_init (&res->printer);
+  if (loc)
+    res->location = *loc;
+  for (int i = 0; i < CODE_PROPS_SIZE; ++i)
+    code_props_none_init (&res->props[i]);
 
   return res;
 }
@@ -120,9 +142,9 @@ semantic_type_new (uniqstr tag)
   if (s->Attr)                                          \
     fprintf (f, " %s { %s }", #Attr, s->Attr)
 
-#define SYMBOL_CODE_PRINT(Attr)                         \
-  if (s->Attr.code)                                     \
-    fprintf (f, " %s { %s }", #Attr, s->Attr.code)
+#define SYMBOL_CODE_PRINT(Attr)                                         \
+  if (s->props[Attr].code)                                              \
+    fprintf (f, " %s { %s }", #Attr, s->props[Attr].code)
 
 void
 symbol_print (symbol *s, FILE *f)
@@ -185,16 +207,16 @@ static void
 symbol_redeclaration (symbol *s, const char *what, location first,
                       location second)
 {
-  complain_at (second, _("%s redeclaration for %s"), what, s->tag);
-  complain_at (first, _("previous declaration"));
+  complain_at (second, complaint, _("%s redeclaration for %s"), what, s->tag);
+  complain_at (first, complaint, _("previous declaration"));
 }
 
 static void
 semantic_type_redeclaration (semantic_type *s, const char *what, location first,
                              location second)
 {
-  complain_at (second, _("%s redeclaration for <%s>"), what, s->tag);
-  complain_at (first, _("previous declaration"));
+  complain_at (second, complaint, _("%s redeclaration for <%s>"), what, s->tag);
+  complain_at (first, complaint, _("previous declaration"));
 }
 
 
@@ -217,115 +239,65 @@ symbol_type_set (symbol *sym, uniqstr type_name, location loc)
     }
 }
 
-/*-----------------------------------------.
-| Set the DESTRUCTOR associated with SYM.  |
-`-----------------------------------------*/
+/*--------------------------------------------------------.
+| Set the DESTRUCTOR or PRINTER associated with the SYM.  |
+`--------------------------------------------------------*/
 
 void
-symbol_destructor_set (symbol *sym, code_props const *destructor)
+symbol_code_props_set (symbol *sym, code_props_type kind,
+                       code_props const *code)
 {
-  if (sym->destructor.code)
-    symbol_redeclaration (sym, "%destructor", sym->destructor.location,
-                          destructor->location);
-  sym->destructor = *destructor;
+  if (sym->props[kind].code)
+    symbol_redeclaration (sym, code_props_type_string (kind),
+                          sym->props[kind].location,
+                          code->location);
+  sym->props[kind] = *code;
 }
 
-/*------------------------------------------.
-| Set the DESTRUCTOR associated with TYPE.  |
-`------------------------------------------*/
+/*-----------------------------------------------------.
+| Set the DESTRUCTOR or PRINTER associated with TYPE.  |
+`-----------------------------------------------------*/
 
 void
-semantic_type_destructor_set (semantic_type *type,
-                              code_props const *destructor)
+semantic_type_code_props_set (semantic_type *type,
+                              code_props_type kind,
+                              code_props const *code)
 {
-  if (type->destructor.code)
-    semantic_type_redeclaration (type, "%destructor",
-                                 type->destructor.location,
-                                 destructor->location);
-  type->destructor = *destructor;
+  if (type->props[kind].code)
+    semantic_type_redeclaration (type, code_props_type_string (kind),
+                                 type->props[kind].location,
+                                 code->location);
+  type->props[kind] = *code;
 }
 
-/*---------------------------------------.
-| Get the computed %destructor for SYM.  |
-`---------------------------------------*/
+/*---------------------------------------------------.
+| Get the computed %destructor or %printer for SYM.  |
+`---------------------------------------------------*/
 
 code_props const *
-symbol_destructor_get (symbol const *sym)
+symbol_code_props_get (symbol const *sym,
+                       code_props_type kind)
 {
-  /* Per-symbol %destructor.  */
-  if (sym->destructor.code)
-    return &sym->destructor;
+  /* Per-symbol code props.  */
+  if (sym->props[kind].code)
+    return &sym->props[kind];
 
-  /* Per-type %destructor.  */
+  /* Per-type code props.  */
   if (sym->type_name)
     {
-      code_props const *destructor =
-        &semantic_type_get (sym->type_name)->destructor;
-      if (destructor->code)
-        return destructor;
+      code_props const *code =
+        &semantic_type_get (sym->type_name, NULL)->props[kind];
+      if (code->code)
+        return code;
     }
 
-  /* Apply default %destructor's only to user-defined symbols.  */
+  /* Apply default code props's only to user-defined symbols.  */
   if (sym->tag[0] == '$' || sym == errtoken)
     return &code_props_none;
 
   if (sym->type_name)
-    return &default_tagged_destructor;
-  return &default_tagless_destructor;
-}
-
-/*--------------------------------------.
-| Set the PRINTER associated with SYM.  |
-`--------------------------------------*/
-
-void
-symbol_printer_set (symbol *sym, code_props const *printer)
-{
-  if (sym->printer.code)
-    symbol_redeclaration (sym, "%printer",
-                          sym->printer.location, printer->location);
-  sym->printer = *printer;
-}
-
-/*---------------------------------------.
-| Set the PRINTER associated with TYPE.  |
-`---------------------------------------*/
-
-void
-semantic_type_printer_set (semantic_type *type, code_props const *printer)
-{
-  if (type->printer.code)
-    semantic_type_redeclaration (type, "%printer",
-                                 type->printer.location, printer->location);
-  type->printer = *printer;
-}
-
-/*------------------------------------.
-| Get the computed %printer for SYM.  |
-`------------------------------------*/
-
-code_props const *
-symbol_printer_get (symbol const *sym)
-{
-  /* Per-symbol %printer.  */
-  if (sym->printer.code)
-    return &sym->printer;
-
-  /* Per-type %printer.  */
-  if (sym->type_name)
-    {
-      code_props const *printer = &semantic_type_get (sym->type_name)->printer;
-      if (printer->code)
-        return printer;
-    }
-
-  /* Apply the default %printer only to user-defined symbols.  */
-  if (sym->tag[0] == '$' || sym == errtoken)
-    return &code_props_none;
-
-  if (sym->type_name)
-    return &default_tagged_printer;
-  return &default_tagless_printer;
+    return &default_tagged_code_props[kind];
+  return &default_tagless_code_props[kind];
 }
 
 /*-----------------------------------------------------------------.
@@ -358,10 +330,12 @@ symbol_precedence_set (symbol *sym, int prec, assoc a, location loc)
 void
 symbol_class_set (symbol *sym, symbol_class class, location loc, bool declaring)
 {
+  bool warned = false;
   if (sym->class != unknown_sym && sym->class != class)
     {
-      complain_at (loc, _("symbol %s redefined"), sym->tag);
-      sym->declared = false;
+      complain_at (loc, complaint, _("symbol %s redefined"), sym->tag);
+      // Don't report both "redefined" and "redeclared".
+      warned = true;
     }
 
   if (class == nterm_sym && sym->class != nterm_sym)
@@ -373,9 +347,9 @@ symbol_class_set (symbol *sym, symbol_class class, location loc, bool declaring)
 
   if (declaring)
     {
-      if (sym->declared)
-        warn_at (loc, _("symbol %s redeclared"), sym->tag);
-      sym->declared = true;
+      if (sym->status == declared && !warned)
+        complain_at (loc, Wother, _("symbol %s redeclared"), sym->tag);
+      sym->status = declared;
     }
 }
 
@@ -395,7 +369,8 @@ symbol_user_token_number_set (symbol *sym, int user_token_number, location loc)
     user_token_numberp = &sym->alias->user_token_number;
   if (*user_token_numberp != USER_NUMBER_UNDEFINED
       && *user_token_numberp != user_token_number)
-    complain_at (loc, _("redefining user token number of %s"), sym->tag);
+    complain_at (loc, complaint, _("redefining user token number of %s"),
+                 sym->tag);
 
   *user_token_numberp = user_token_number;
   /* User defined $end token? */
@@ -421,13 +396,67 @@ symbol_check_defined (symbol *sym)
 {
   if (sym->class == unknown_sym)
     {
-      complain_at
-        (sym->location,
-         _("symbol %s is used, but is not defined as a token and has no rules"),
-         sym->tag);
+      switch (sym->status)
+        {
+        case used:
+          complain_at (sym->location, Wother,
+                   _("symbol %s is used, but is not defined as a token"
+                     " and has no rules"),
+                   sym->tag);
+          break;
+        case undeclared:
+        case needed:
+          complain_at (sym->location, complaint,
+                    _("symbol %s is used, but is not defined as a token"
+                      " and has no rules"),
+                    sym->tag);
+          break;
+        case declared:
+          /* If declared, then sym->class != unknown_sym. */
+          assert (0);
+        }
+
       sym->class = nterm_sym;
       sym->number = nvars++;
     }
+
+  for (int i = 0; i < 2; ++i)
+    if (sym->props[i].kind == CODE_PROPS_NONE && sym->type_name)
+      {
+        semantic_type *sem_type = semantic_type_get (sym->type_name, NULL);
+        if (sem_type
+            && sem_type->props[i].kind != CODE_PROPS_NONE)
+          sem_type->props[i].is_used = true;
+      }
+
+  /* Set the semantic type status associated to the current symbol to
+     'declared' so that we could check semantic types unnecessary uses. */
+  if (sym->type_name)
+    {
+      semantic_type *sem_type = semantic_type_get (sym->type_name, NULL);
+      if (sem_type)
+        sem_type->status = declared;
+    }
+
+  return true;
+}
+
+static inline bool
+semantic_type_check_defined (semantic_type *sem_type)
+{
+  if (sem_type->status == declared)
+    {
+      for (int i = 0; i < 2; ++i)
+        if (sem_type->props[i].kind != CODE_PROPS_NONE
+            && ! sem_type->props[i].is_used)
+          complain_at (sem_type->location, Wother,
+                   _("useless %s for type <%s>"),
+                   code_props_type_string (i), sem_type->tag);
+    }
+  else
+    complain_at (sem_type->location, Wother,
+                 _("type <%s> is used, but is not associated to any symbol"),
+                 sem_type->tag);
 
   return true;
 }
@@ -438,16 +467,23 @@ symbol_check_defined_processor (void *sym, void *null ATTRIBUTE_UNUSED)
   return symbol_check_defined (sym);
 }
 
+static bool
+semantic_type_check_defined_processor (void *sem_type,
+                                       void *null ATTRIBUTE_UNUSED)
+{
+  return semantic_type_check_defined (sem_type);
+}
+
 
 void
 symbol_make_alias (symbol *sym, symbol *str, location loc)
 {
   if (str->alias)
-    warn_at (loc, _("symbol %s used more than once as a literal string"),
-             str->tag);
+    complain_at (loc, Wother,
+              _("symbol %s used more than once as a literal string"), str->tag);
   else if (sym->alias)
-    warn_at (loc, _("symbol %s given more than one literal string"),
-             sym->tag);
+    complain_at (loc, Wother,
+              _("symbol %s given more than one literal string"), sym->tag);
   else
     {
       str->class = token_sym;
@@ -486,21 +522,11 @@ symbol_check_alias_consistency (symbol *this)
     }
 
 
-  if (str->destructor.code || sym->destructor.code)
-    {
-      if (str->destructor.code)
-        symbol_destructor_set (sym, &str->destructor);
-      else
-        symbol_destructor_set (str, &sym->destructor);
-    }
-
-  if (str->printer.code || sym->printer.code)
-    {
-      if (str->printer.code)
-        symbol_printer_set (sym, &str->printer);
-      else
-        symbol_printer_set (str, &sym->printer);
-    }
+  for (int i = 0; i < CODE_PROPS_SIZE; ++i)
+    if (str->props[i].code)
+      symbol_code_props_set (sym, i, &str->props[i]);
+    else if (sym->props[i].code)
+      symbol_code_props_set (str, i, &sym->props[i]);
 
   if (sym->prec || str->prec)
     {
@@ -561,10 +587,10 @@ user_token_number_redeclaration (int num, symbol *first, symbol *second)
       first = second;
       second = tmp;
     }
-  complain_at (second->location,
+  complain_at (second->location, complaint,
                _("user token number %d redeclaration for %s"),
                num, second->tag);
-  complain_at (first->location, _("previous declaration for %s"),
+  complain_at (first->location, complaint, _("previous declaration for %s"),
                first->tag);
 }
 
@@ -585,10 +611,10 @@ symbol_translation (symbol *this)
           (this->user_token_number,
            symbols[token_translations[this->user_token_number]],
            this);
-
+      
       token_translations[this->user_token_number] = this->number;
     }
-
+  
   return true;
 }
 
@@ -713,7 +739,7 @@ symbol_from_uniqstr (const uniqstr key, location loc)
 `-----------------------------------------------------------------------*/
 
 semantic_type *
-semantic_type_from_uniqstr (const uniqstr key)
+semantic_type_from_uniqstr (const uniqstr key, const location *loc)
 {
   semantic_type probe;
   semantic_type *entry;
@@ -724,7 +750,7 @@ semantic_type_from_uniqstr (const uniqstr key)
   if (!entry)
     {
       /* First insertion in the hash. */
-      entry = semantic_type_new (key);
+      entry = semantic_type_new (key, loc);
       if (!hash_insert (semantic_type_table, entry))
         xalloc_die ();
     }
@@ -750,9 +776,9 @@ symbol_get (const char *key, location loc)
 `-----------------------------------------------------------------------*/
 
 semantic_type *
-semantic_type_get (const char *key)
+semantic_type_get (const char *key, const location *loc)
 {
-  return semantic_type_from_uniqstr (uniqstr_new (key));
+  return semantic_type_from_uniqstr (uniqstr_new (key), loc);
 }
 
 
@@ -815,20 +841,20 @@ symbols_cmp_qsort (void const *a, void const *b)
 }
 
 static void
-symbols_do (Hash_processor processor, void *processor_data)
+symbols_do (Hash_processor processor, void *processor_data,
+            struct hash_table *table, symbol **sorted)
 {
-  size_t count = hash_get_n_entries (symbol_table);
-  if (!symbols_sorted)
+  size_t count = hash_get_n_entries (table);
+  if (!sorted)
     {
-      symbols_sorted = xnmalloc (count, sizeof *symbols_sorted);
-      hash_get_entries (symbol_table, (void**)symbols_sorted, count);
-      qsort (symbols_sorted, count, sizeof *symbols_sorted,
-             symbols_cmp_qsort);
+      sorted = xnmalloc (count, sizeof *sorted);
+      hash_get_entries (table, (void**)sorted, count);
+      qsort (sorted, count, sizeof *sorted, symbols_cmp_qsort);
     }
   {
     size_t i;
     for (i = 0; i < count; ++i)
-      processor (symbols_sorted[i], processor_data);
+      processor (sorted[i], processor_data);
   }
 }
 
@@ -840,7 +866,10 @@ symbols_do (Hash_processor processor, void *processor_data)
 void
 symbols_check_defined (void)
 {
-  symbols_do (symbol_check_defined_processor, NULL);
+  symbols_do (symbol_check_defined_processor, NULL,
+              symbol_table, symbols_sorted);
+  symbols_do (semantic_type_check_defined_processor, NULL,
+              semantic_type_table, semantic_types_sorted);
 }
 
 /*------------------------------------------------------------------.
@@ -894,7 +923,8 @@ symbols_token_translations_init (void)
      number for $undefined, which represents all invalid inputs.  */
   for (i = 0; i < max_user_token_number + 1; i++)
     token_translations[i] = undeftoken->number;
-  symbols_do (symbol_translation_processor, NULL);
+  symbols_do (symbol_translation_processor, NULL,
+              symbol_table, symbols_sorted);
 }
 
 
@@ -906,10 +936,11 @@ symbols_token_translations_init (void)
 void
 symbols_pack (void)
 {
-  symbols_do (symbol_check_alias_consistency_processor, NULL);
+  symbols_do (symbol_check_alias_consistency_processor, NULL,
+              symbol_table, symbols_sorted);
 
   symbols = xcalloc (nsyms, sizeof *symbols);
-  symbols_do (symbol_pack_processor, NULL);
+  symbols_do (symbol_pack_processor, NULL, symbol_table, symbols_sorted);
 
   /* Aliases leave empty slots in symbols, so remove them.  */
   {
@@ -938,13 +969,13 @@ symbols_pack (void)
   symbols_token_translations_init ();
 
   if (startsymbol->class == unknown_sym)
-    fatal_at (startsymbol_location,
-              _("the start symbol %s is undefined"),
-              startsymbol->tag);
+    complain_at (startsymbol_location, fatal,
+                 _("the start symbol %s is undefined"),
+                 startsymbol->tag);
   else if (startsymbol->class == token_sym)
-    fatal_at (startsymbol_location,
-              _("the start symbol %s is a token"),
-              startsymbol->tag);
+    complain_at (startsymbol_location, fatal,
+                 _("the start symbol %s is a token"),
+                 startsymbol->tag);
 }
 
 
@@ -953,53 +984,29 @@ symbols_pack (void)
 `--------------------------------------------------*/
 
 void
-default_tagged_destructor_set (code_props const *destructor)
+default_tagged_code_props_set (code_props_type kind, code_props const *code)
 {
-  if (default_tagged_destructor.code)
+  if (default_tagged_code_props[kind].code)
     {
-      complain_at (destructor->location,
-                   _("redeclaration for default tagged %%destructor"));
-      complain_at (default_tagged_destructor.location,
+      complain_at (code->location, complaint,
+                   _("redeclaration for default tagged %s"),
+                   code_props_type_string (kind));
+      complain_at (default_tagged_code_props[kind].location, complaint,
                    _("previous declaration"));
     }
-  default_tagged_destructor = *destructor;
+  default_tagged_code_props[kind] = *code;
 }
 
 void
-default_tagless_destructor_set (code_props const *destructor)
+default_tagless_code_props_set (code_props_type kind, code_props const *code)
 {
-  if (default_tagless_destructor.code)
+  if (default_tagless_code_props[kind].code)
     {
-      complain_at (destructor->location,
-                   _("redeclaration for default tagless %%destructor"));
-      complain_at (default_tagless_destructor.location,
+      complain_at (code->location, complaint,
+                   _("redeclaration for default tagless %s"),
+                   code_props_type_string (kind));
+      complain_at (default_tagless_code_props[kind].location, complaint,
                    _("previous declaration"));
     }
-  default_tagless_destructor = *destructor;
-}
-
-void
-default_tagged_printer_set (code_props const *printer)
-{
-  if (default_tagged_printer.code)
-    {
-      complain_at (printer->location,
-                   _("redeclaration for default tagged %%printer"));
-      complain_at (default_tagged_printer.location,
-                   _("previous declaration"));
-    }
-  default_tagged_printer = *printer;
-}
-
-void
-default_tagless_printer_set (code_props const *printer)
-{
-  if (default_tagless_printer.code)
-    {
-      complain_at (printer->location,
-                   _("redeclaration for default tagless %%printer"));
-      complain_at (default_tagless_printer.location,
-                   _("previous declaration"));
-    }
-  default_tagless_printer = *printer;
+  default_tagless_code_props[kind] = *code;
 }

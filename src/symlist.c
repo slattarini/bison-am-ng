@@ -24,7 +24,6 @@
 #include "complain.h"
 #include "symlist.h"
 
-
 /*--------------------------------------.
 | Create a list containing SYM at LOC.  |
 `--------------------------------------*/
@@ -66,7 +65,11 @@ symbol_list_type_new (uniqstr type_name, location loc)
   symbol_list *res = xmalloc (sizeof *res);
 
   res->content_type = SYMLIST_TYPE;
-  res->content.type_name = type_name;
+  res->content.sem_type = xmalloc (sizeof (semantic_type));
+  res->content.sem_type->tag = type_name;
+  res->content.sem_type->location = loc;
+  res->content.sem_type->status = undeclared;
+
   res->location = res->sym_loc = loc;
   res->named_ref = NULL;
   res->next = NULL;
@@ -208,7 +211,7 @@ symbol_list_n_type_name_get (symbol_list *l, location loc, int n)
   l = symbol_list_n_get (l, n);
   if (!l)
     {
-      complain_at (loc, _("invalid $ value: $%d"), n);
+      complain_at (loc, complaint, _("invalid $ value: $%d"), n);
       return NULL;
     }
   aver (l->content_type == SYMLIST_SYMBOL);
@@ -223,49 +226,32 @@ symbol_list_null (symbol_list *node)
 }
 
 void
-symbol_list_destructor_set (symbol_list *node, char const *code, location loc)
+symbol_list_code_props_set (symbol_list *node, code_props_type kind,
+                            location loc, char const *code)
 {
-  code_props destructor;
-  code_props_symbol_action_init (&destructor, code, loc);
-  code_props_translate_code (&destructor);
+  code_props cprops;
+  code_props_symbol_action_init (&cprops, code, loc);
+  code_props_translate_code (&cprops);
   switch (node->content_type)
     {
       case SYMLIST_SYMBOL:
-        symbol_destructor_set (node->content.sym, &destructor);
+        symbol_code_props_set (node->content.sym, kind, &cprops);
+        if (node->content.sym->status == undeclared)
+          node->content.sym->status = used;
         break;
       case SYMLIST_TYPE:
-        semantic_type_destructor_set (
-          semantic_type_get (node->content.type_name), &destructor);
+        semantic_type_code_props_set
+          (semantic_type_get (node->content.sem_type->tag,
+                              &node->content.sem_type->location),
+           kind, &cprops);
+        if (node->content.sem_type->status == undeclared)
+          node->content.sem_type->status = used;
         break;
       case SYMLIST_DEFAULT_TAGGED:
-        default_tagged_destructor_set (&destructor);
+        default_tagged_code_props_set (kind, &cprops);
         break;
       case SYMLIST_DEFAULT_TAGLESS:
-        default_tagless_destructor_set (&destructor);
-        break;
-    }
-}
-
-void
-symbol_list_printer_set (symbol_list *node, char const *code, location loc)
-{
-  code_props printer;
-  code_props_symbol_action_init (&printer, code, loc);
-  code_props_translate_code (&printer);
-  switch (node->content_type)
-    {
-      case SYMLIST_SYMBOL:
-        symbol_printer_set (node->content.sym, &printer);
-        break;
-      case SYMLIST_TYPE:
-        semantic_type_printer_set (
-          semantic_type_get (node->content.type_name), &printer);
-        break;
-      case SYMLIST_DEFAULT_TAGGED:
-        default_tagged_printer_set (&printer);
-        break;
-      case SYMLIST_DEFAULT_TAGLESS:
-        default_tagless_printer_set (&printer);
+        default_tagless_code_props_set (kind, &cprops);
         break;
     }
 }

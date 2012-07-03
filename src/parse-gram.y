@@ -390,14 +390,14 @@ grammar_declaration:
     {
       symbol_list *list;
       for (list = $3; list; list = list->next)
-        symbol_list_destructor_set (list, $2, @2);
+        symbol_list_code_props_set (list, destructor, @2, $2);
       symbol_list_free ($3);
     }
 | "%printer" "{...}" generic_symlist
     {
       symbol_list *list;
       for (list = $3; list; list = list->next)
-        symbol_list_printer_set (list, $2, @2);
+        symbol_list_code_props_set (list, printer, @2, $2);
       symbol_list_free ($3);
     }
 | "%default-prec"
@@ -773,7 +773,8 @@ add_param (param_type type, char *decl, location loc)
   }
 
   if (! name_start)
-    complain_at (loc, _("missing identifier in parameter declaration"));
+    complain_at (loc, complaint,
+                 _("missing identifier in parameter declaration"));
   else
     {
       char *name = xmemdup0 (name_start, strspn (name_start, alphanum));
@@ -793,7 +794,7 @@ version_check (location const *loc, char const *version)
 {
   if (strverscmp (version, PACKAGE_VERSION) > 0)
     {
-      complain_at (*loc, "require bison %s, but have %s",
+      complain_at (*loc, complaint, "require bison %s, but have %s",
                    version, PACKAGE_VERSION);
       exit (EX_MISMATCH);
     }
@@ -802,7 +803,7 @@ version_check (location const *loc, char const *version)
 static void
 gram_error (location const *loc, char const *msg)
 {
-  complain_at (*loc, "%s", msg);
+  complain_at (*loc, complaint, "%s", msg);
 }
 
 char const *

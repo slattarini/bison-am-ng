@@ -145,16 +145,14 @@ b4_copyright([Skeleton interface for Bison LALR(1) parsers in C++])
 /* C++ LALR(1) parser skeleton written by Akim Demaille.  */
 
 ]b4_cpp_guard_open([b4_spec_defines_file])[
-
 ]b4_percent_code_get([[requires]])[
-
-]b4_parse_assert_if([#include <cassert>])[
-#include <stdexcept>
-#include <string>
-#include <iostream>
-#include "stack.hh"
+]b4_parse_assert_if([# include <cassert>])[
+# include <stdexcept>
+# include <string>
+# include <iostream>
+# include "stack.hh"
 ]b4_locations_if([b4_percent_define_ifdef([[location_type]], [],
-                                          [[#include "location.hh"]])])[
+                                          [[# include "location.hh"]])])[
 
 ]b4_variant_if([b4_namespace_open
 b4_variant_define
@@ -165,19 +163,6 @@ b4_namespace_close])[
 /* Enabling traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG ]b4_parse_trace_if([1], [0])[
-#endif
-
-/* Enabling verbose error messages.  */
-#ifdef YYERROR_VERBOSE
-# undef YYERROR_VERBOSE
-# define YYERROR_VERBOSE 1
-#else
-# define YYERROR_VERBOSE ]b4_error_verbose_if([1], [0])[
-#endif
-
-/* Enabling the token table.  */
-#ifndef YYTOKEN_TABLE
-# define YYTOKEN_TABLE ]b4_token_table[
 #endif
 
 ]b4_namespace_open[
@@ -244,18 +229,16 @@ b4_namespace_close])[
     static const ]b4_int_type(b4_pact_ninf, b4_pact_ninf)[ yypact_ninf_;
     static const ]b4_int_type(b4_table_ninf, b4_table_ninf)[ yytable_ninf_;
 
-    /* Tables.  */
-]b4_parser_tables_declare[
-
-#if YYDEBUG || YYERROR_VERBOSE || YYTOKEN_TABLE
-    /// For a symbol, its name in clear.
-    static const char* const yytname_[];
-#endif]b4_error_verbose_if([
+    // Tables.
+]b4_parser_tables_declare[]b4_error_verbose_if([
 
     /// Convert the symbol name \a n to a form suitable for a diagnostic.
     static std::string yytnamerr_ (const char *n);])[
 
-#if YYDEBUG
+]b4_token_table_if([], [[#if YYDEBUG]])[
+    /// For a symbol, its name in clear.
+    static const char* const yytname_[];
+]b4_token_table_if([[#if YYDEBUG]])[
 ]b4_integral_parser_table_declare([rline], [b4_rline],
      [YYRLINE[YYN] -- Source line where rule number YYN was defined.])[
     /// Report on the debug stream that the rule \a r is going to be reduced.
@@ -263,10 +246,10 @@ b4_namespace_close])[
     /// Print the state stack on the debug stream.
     virtual void yystack_print_ ();
 
-    /* Debugging.  */
+    // Debugging.
     int yydebug_;
     std::ostream* yycdebug_;
-#endif
+#endif // YYDEBUG
 
     /// Convert a scanner token number \a t to a symbol number.
     static inline token_number_type yytranslate_ (]b4_lex_symbol_if([token_type], [int])[ t);
@@ -357,9 +340,9 @@ b4_public_types_define])[
 ]b4_percent_define_flag_if([[global_tokens_and_yystype]],
 [b4_token_defines(b4_tokens)
 
-#ifndef YYSTYPE
+#ifndef ]b4_api_PREFIX[STYPE
  /* Redirection for backward compatibility.  */
-# define YYSTYPE b4_namespace_ref::b4_parser_class_name::semantic_type
+# define ]b4_api_PREFIX[STYPE b4_namespace_ref::b4_parser_class_name::semantic_type
 #endif
 ])[
 ]b4_percent_code_get([[provides]])[
@@ -654,7 +637,7 @@ b4_percent_code_get[]dnl
   {
     yydebug_ = l;
   }
-#endif
+#endif // YYDEBUG
 
   inline ]b4_parser_class_name[::state_type
   ]b4_parser_class_name[::yy_lr_goto_state_ (state_type yystate, int yylhs)
@@ -701,7 +684,7 @@ b4_percent_code_get[]dnl
     /// $$ and @@$.
     stack_symbol_type yylhs;
 
-    /// The return value of parse().
+    /// The return value of parse ().
     int yyresult;
 
     YYCDEBUG << "Starting parse" << std::endl;
@@ -749,7 +732,7 @@ m4_popdef([b4_at_dollar])])dnl
 [          yyla = b4_c_function_call([yylex], [symbol_type],
                                      m4_ifdef([b4_lex_param], b4_lex_param));],
 [          yyla.type = yytranslate_ (b4_c_function_call([yylex], [int],
-                                     [[YYSTYPE*], [&yyla.value]][]dnl
+                                     [b4_api_PREFIX[STYPE*], [&yyla.value]][]dnl
 b4_locations_if([, [[location*], [&yyla.location]]])dnl
 m4_ifdef([b4_lex_param], [, ]b4_lex_param)));])[
         }
@@ -850,7 +833,7 @@ m4_ifdef([b4_lex_param], [, ]b4_lex_param)));])[
       // Destroy a variant which value may have been swapped with
       // yylhs.value (for instance if the action was "std::swap($$,
       // $1)").  The value of yylhs.value (hence possibly one of these
-      // rhs symbols) depends on the default contruction for this
+      // rhs symbols) depends on the default construction for this
       // type.  In the case of pointers for instance, no
       // initialization is done, so the value is junk.  Therefore do
       // not try to report the value of symbols about to be destroyed
@@ -1099,7 +1082,7 @@ b4_error_verbose_if([state_type yystate, int yytoken],
 
 ]b4_parser_tables_define[
 
-#if YYDEBUG || YYERROR_VERBOSE || YYTOKEN_TABLE
+]b4_token_table_if([], [[#if YYDEBUG]])[
   /* YYTNAME[SYMBOL-NUM] -- String name of the symbol SYMBOL-NUM.
      First, the terminals, then, starting at \a yyntokens_, nonterminals.  */
   const char*
@@ -1107,9 +1090,8 @@ b4_error_verbose_if([state_type yystate, int yytoken],
   {
   ]b4_tname[
   };
-#endif
 
-#if YYDEBUG
+]b4_token_table_if([[#if YYDEBUG]])[
 ]b4_integral_parser_table_define([rline], [b4_rline])[
 
   // Print the state stack on the debug stream.

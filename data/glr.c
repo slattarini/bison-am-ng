@@ -162,6 +162,23 @@ m4_define([b4_rhs_location],
 [(b4_rhs_data([$1], [$2]).yyloc)])
 
 
+## -------------- ##
+## Declarations.  ##
+## -------------- ##
+
+# b4_shared_declarations
+# ----------------------
+# Declaration that might either go into the header (if --defines)
+# or open coded in the parser body.
+m4_define([b4_shared_declarations],
+[b4_declare_yydebug[
+]b4_percent_code_get([[requires]])[
+]b4_token_enums(b4_tokens)[
+]b4_declare_yylstype[
+]b4_c_ansi_function_decl(b4_prefix[parse], [int], b4_parse_param)[
+]b4_percent_code_get([[provides]])[]dnl
+])
+
 
 ## -------------- ##
 ## Output files.  ##
@@ -178,66 +195,33 @@ b4_copyright([Skeleton implementation for Bison GLR parsers in C],
 
 ]b4_identification
 
-b4_percent_code_get([[top]])[]dnl
-m4_if(b4_prefix, [yy], [],
-[/* Substitute the variable and function names.  */
-#define yyparse b4_prefix[]parse
-#define yylex   b4_prefix[]lex
-#define yyerror b4_prefix[]error
-#define yylval  b4_prefix[]lval
-#define yychar  b4_prefix[]char
-#define yydebug b4_prefix[]debug
-#define yynerrs b4_prefix[]nerrs
-#define yylloc  b4_prefix[]lloc])[
+b4_percent_code_get([[top]])[
+]m4_if(b4_api_prefix, [yy], [],
+[[/* Substitute the type names.  */
+#define YYSTYPE              ]b4_api_PREFIX[STYPE
+#define YYSTYPE_IS_TRIVIAL   ]b4_api_PREFIX[STYPE_IS_TRIVIAL
+#define YYSTYPE_IS_DECLARED  ]b4_api_PREFIX[STYPE_IS_DECLARED]b4_locations_if([[
+#define YYLTYPE              ]b4_api_PREFIX[LTYPE
+#define YYLTYPE_IS_TRIVIAL   ]b4_api_PREFIX[LTYPE_IS_TRIVIAL
+#define YYLTYPE_IS_DECLARED  ]b4_api_PREFIX[LTYPE_IS_DECLARED]])])[
+]m4_if(b4_prefix, [yy], [],
+[[/* Substitute the variable and function names.  */
+#define yyparse ]b4_prefix[parse
+#define yylex   ]b4_prefix[lex
+#define yyerror ]b4_prefix[error
+#define yylval  ]b4_prefix[lval
+#define yychar  ]b4_prefix[char
+#define yydebug ]b4_prefix[debug
+#define yynerrs ]b4_prefix[nerrs]b4_locations_if([[
+#define yylloc  ]b4_prefix[lloc]])])[
 
 /* Copy the first part of user declarations.  */
-]b4_user_pre_prologue
+]b4_user_pre_prologue[
 
-b4_null_define
+]b4_null_define[
 
-dnl # b4_shared_declarations
-dnl # ----------------------
-dnl # Declaration that might either go into the header (if --defines)
-dnl # or open coded in the parser body.
-m4_define([b4_shared_declarations],
-[b4_percent_code_get([[requires]])[]dnl
-
-b4_token_enums(b4_tokens)
-
-[#ifndef YYSTYPE
-]m4_ifdef([b4_stype],
-[[typedef union ]b4_union_name[
-{
-]b4_user_stype[
-} YYSTYPE;
-# define YYSTYPE_IS_TRIVIAL 1]],
-[m4_if(b4_tag_seen_flag, 0,
-[[typedef int YYSTYPE;
-# define YYSTYPE_IS_TRIVIAL 1]])])[
-#endif
-]b4_locations_if([[
-#if ! defined YYLTYPE && ! defined YYLTYPE_IS_DECLARED
-typedef struct YYLTYPE
-{
-  int first_line;
-  int first_column;
-  int last_line;
-  int last_column;
-} YYLTYPE;
-# define YYLTYPE_IS_DECLARED 1
-# define YYLTYPE_IS_TRIVIAL 1
-#endif
-]])[
-]b4_percent_code_get([[provides]])[]dnl
-])
-
-b4_defines_if([[#include "@basename(]b4_spec_defines_file[@)"]],
+]b4_defines_if([[#include "@basename(]b4_spec_defines_file[@)"]],
               [b4_shared_declarations])[
-
-/* Enabling traces.  */
-#ifndef YYDEBUG
-# define YYDEBUG ]b4_parse_trace_if([1], [0])[
-#endif
 
 /* Enabling verbose error messages.  */
 #ifdef YYERROR_VERBOSE
@@ -245,11 +229,6 @@ b4_defines_if([[#include "@basename(]b4_spec_defines_file[@)"]],
 # define YYERROR_VERBOSE 1
 #else
 # define YYERROR_VERBOSE ]b4_error_verbose_if([1], [0])[
-#endif
-
-/* Enabling the token table.  */
-#ifndef YYTOKEN_TABLE
-# define YYTOKEN_TABLE ]b4_token_table[
 #endif
 
 /* Default (constant) value used for initialization for null
@@ -386,7 +365,7 @@ static const ]b4_int_type_for([b4_rline])[ yyrline[] =
 };
 #endif
 
-#if YYDEBUG || YYERROR_VERBOSE || YYTOKEN_TABLE
+#if YYDEBUG || YYERROR_VERBOSE || ]b4_token_table_flag[
 /* YYTNAME[SYMBOL-NUM] -- String name of the symbol SYMBOL-NUM.
    First, the terminals, then, starting at YYNTOKENS, nonterminals.  */
 static const char *const yytname[] =
@@ -438,9 +417,6 @@ dnl We probably ought to introduce a type for confl.
   ]b4_conflicting_rules[
 };
 
-/* Prevent warning if -Wmissing-prototypes.  */
-]b4_c_ansi_function_decl([yyparse], [int], b4_parse_param)[
-
 /* Error token number */
 #define YYTERROR 1
 
@@ -2647,15 +2623,10 @@ m4_if(b4_skeleton, ["glr.c"],
 [b4_defines_if(
 [@output(b4_spec_defines_file@)@
 b4_copyright([Skeleton interface for Bison GLR parsers in C],
-             [2002-2012])
+             [2002-2012])[
 
-b4_shared_declarations
-
-b4_pure_if([],
-[[extern YYSTYPE ]b4_prefix[lval;]])
-
-b4_locations_if([b4_pure_if([],
-[extern YYLTYPE ]b4_prefix[lloc;])
-])
-])])[]dnl
+]b4_cpp_guard_open([b4_spec_defines_file])[
+]b4_shared_declarations[
+]b4_cpp_guard_close([b4_spec_defines_file])[
+]])])
 m4_divert_pop(0)

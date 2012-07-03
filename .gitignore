@@ -1,9 +1,9 @@
-*~
 *.bak
-/.am/
+*~
 /*.cache
 /*.flc
 /*.prj
+/.am/
 /.tarball-version
 /.version
 /ABOUT-NLS
@@ -14,9 +14,9 @@
 /Makefile
 /Makefile.in
 /README-release
+/[ab].out
 /_*
 /a.exe
-/[ab].out
 /aclocal.m4
 /bison-*
 /conf[0-9]*
