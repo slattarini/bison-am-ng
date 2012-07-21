@@ -34,6 +34,7 @@
 /fprintf-posix.m4
 /frexp.m4
 /frexpl.m4
+/fseterr.m4
 /fstat.m4
 /getdtablesize.m4
 /getopt.m4
