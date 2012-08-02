@@ -14,8 +14,8 @@
 /Makefile
 /Makefile.in
 /README-release
-/[ab].out
 /_*
+/[ab].out
 /a.exe
 /aclocal.m4
 /bison-*

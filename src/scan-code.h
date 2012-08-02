@@ -45,7 +45,10 @@ typedef struct code_props {
     CODE_PROPS_SYMBOL_ACTION, CODE_PROPS_RULE_ACTION
   } kind;
 
-  /** \c NULL iff \c code_props::kind is \c CODE_PROPS_NONE.  */
+  /**
+   * \c NULL iff \c code_props::kind is \c CODE_PROPS_NONE.
+   * Memory is allocated in an obstack freed elsewhere.
+   */
   char const *code;
   /** Undefined iff \c code_props::code is \c NULL.  */
   location location;
@@ -103,7 +106,7 @@ void code_props_none_init (code_props *self);
   }
 
 /** Initialized by \c CODE_PROPS_NONE_INIT with no further modification.  */
-extern code_props const code_props_none;
+extern code_props code_props_none;
 
 /**
  * \pre

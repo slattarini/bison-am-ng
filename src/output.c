@@ -69,7 +69,7 @@ Name (char const *name,                                                 \
   int i;                                                                \
   int j = 1;                                                            \
                                                                         \
-  obstack_fgrow1 (&format_obstack, "%6d", first);                       \
+  obstack_printf (&format_obstack, "%6d", first);                       \
   for (i = begin; i < end; ++i)                                         \
     {                                                                   \
       obstack_1grow (&format_obstack, ',');                             \
@@ -80,7 +80,7 @@ Name (char const *name,                                                 \
         }                                                               \
       else                                                              \
         ++j;                                                            \
-      obstack_fgrow1 (&format_obstack, "%6d", table_data[i]);           \
+      obstack_printf (&format_obstack, "%6d", table_data[i]);           \
       if (table_data[i] < min)                                          \
         min = table_data[i];                                            \
       if (max < table_data[i])                                          \
@@ -92,10 +92,10 @@ Name (char const *name,                                                 \
   lmin = min;                                                           \
   lmax = max;                                                           \
   /* Build `NAME_min' and `NAME_max' in the obstack. */                 \
-  obstack_fgrow1 (&format_obstack, "%s_min", name);                     \
+  obstack_printf (&format_obstack, "%s_min", name);                     \
   obstack_1grow (&format_obstack, 0);                                   \
   MUSCLE_INSERT_LONG_INT (obstack_finish (&format_obstack), lmin);      \
-  obstack_fgrow1 (&format_obstack, "%s_max", name);                     \
+  obstack_printf (&format_obstack, "%s_max", name);                     \
   obstack_1grow (&format_obstack, 0);                                   \
   MUSCLE_INSERT_LONG_INT (obstack_finish (&format_obstack), lmax);      \
 }
@@ -108,27 +108,37 @@ GENERATE_MUSCLE_INSERT_TABLE(muscle_insert_symbol_number_table, symbol_number)
 GENERATE_MUSCLE_INSERT_TABLE(muscle_insert_state_number_table, state_number)
 
 
-/*--------------------------------------------------------------------.
-| Print to OUT a representation of STRING escaped both for C and M4.  |
-`--------------------------------------------------------------------*/
+/*----------------------------------------------------------------.
+| Print to OUT a representation of CP quoted and escaped for M4.  |
+`----------------------------------------------------------------*/
 
 static void
-escaped_output (FILE *out, char const *string)
+quoted_output (FILE *out, char const *cp)
 {
-  char const *p;
   fprintf (out, "[[");
 
-  for (p = quotearg_style (c_quoting_style, string); *p; p++)
-    switch (*p)
+  for (; *cp; cp++)
+    switch (*cp)
       {
       case '$': fputs ("$][", out); break;
       case '@': fputs ("@@",  out); break;
       case '[': fputs ("@{",  out); break;
       case ']': fputs ("@}",  out); break;
-      default: fputc (*p, out); break;
+      default:  fputc (*cp,   out); break;
       }
 
   fprintf (out, "]]");
+}
+
+/*----------------------------------------------------------------.
+| Print to OUT a representation of STRING quoted and escaped both |
+| for C and M4.                                                   |
+`----------------------------------------------------------------*/
+
+static void
+string_output (FILE *out, char const *string)
+{
+  quoted_output (out, quotearg_style (c_quoting_style, string));
 }
 
 
@@ -174,7 +184,7 @@ prepare_symbols (void)
 
         if (i)
           obstack_1grow (&format_obstack, ' ');
-        MUSCLE_OBSTACK_SGROW (&format_obstack, cp);
+        obstack_escape (&format_obstack, cp);
         free (cp);
         obstack_1grow (&format_obstack, ',');
         j += width;
@@ -355,7 +365,7 @@ user_actions_output (FILE *out)
         fprintf (out, "b4_%scase(%d, [b4_syncline(%d, ",
                  rules[r].is_predicate ? "predicate_" : "",
                  r + 1, rules[r].action_location.start.line);
-        escaped_output (out, rules[r].action_location.start.file);
+        string_output (out, rules[r].action_location.start.file);
         fprintf (out, ")\n[    %s]])\n\n", rules[r].action);
       }
   fputs ("])\n\n", out);
@@ -400,13 +410,13 @@ prepare_symbol_definitions (void)
       const char *value;
 
 #define SET_KEY(Entry)                                          \
-      obstack_fgrow2 (&format_obstack, "symbol(%d, %s)",        \
+      obstack_printf (&format_obstack, "symbol(%d, %s)",        \
                       i, Entry);                                \
       obstack_1grow (&format_obstack, 0);                       \
       key = obstack_finish (&format_obstack);
 
 #define SET_KEY2(Entry, Suffix)                                 \
-      obstack_fgrow3 (&format_obstack, "symbol(%d, %s_%s)",     \
+      obstack_printf (&format_obstack, "symbol(%d, %s_%s)",     \
                       i, Entry, Suffix);                        \
       obstack_1grow (&format_obstack, 0);                       \
       key = obstack_finish (&format_obstack);
@@ -469,40 +479,6 @@ prepare_symbol_definitions (void)
 }
 
 
-/*--------------------------------------.
-| Output the tokens definition to OUT.  |
-`--------------------------------------*/
-
-static void
-token_definitions_output (FILE *out)
-{
-  int i;
-  char const *sep = "";
-
-  fputs ("m4_define([b4_tokens], \n[", out);
-  for (i = 0; i < ntokens; ++i)
-    {
-      symbol *sym = symbols[i];
-      int number = sym->user_token_number;
-      uniqstr id = symbol_id_get (sym);
-
-      /* At this stage, if there are literal string aliases, they are
-         part of SYMBOLS, so we should not find their aliased symbols
-         here.  */
-      aver (number != USER_NUMBER_HAS_STRING_ALIAS);
-
-      /* Skip error token and tokens without identifier.  */
-      if (sym != errtoken && id)
-        {
-          fprintf (out, "%s[[[%s]], %d]",
-                   sep, id, number);
-          sep = ",\n";
-        }
-    }
-  fputs ("])\n\n", out);
-}
-
-
 static void
 prepare_actions (void)
 {
@@ -561,7 +537,6 @@ muscles_output (FILE *out)
   fputs ("m4_init()\n", out);
   merger_output (out);
   symbol_numbers_output (out);
-  token_definitions_output (out);
   type_names_output (out);
   user_actions_output (out);
   // Must be last.

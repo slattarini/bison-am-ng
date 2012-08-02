@@ -176,7 +176,7 @@ m4_define([b4_rhs_location],
 m4_define([b4_shared_declarations],
 [b4_declare_yydebug[
 ]b4_percent_code_get([[requires]])[
-]b4_token_enums(b4_tokens)[
+]b4_token_enums[
 ]b4_declare_yylstype[
 ]b4_c_ansi_function_decl(b4_prefix[parse], [int], b4_parse_param)[
 ]b4_percent_code_get([[provides]])[]dnl
@@ -214,13 +214,13 @@ b4_percent_code_get([[top]])[
 #define yynerrs ]b4_prefix[nerrs]b4_locations_if([[
 #define yylloc  ]b4_prefix[lloc]])])[
 
-/* Copy the first part of user declarations.  */
+/* First part of user declarations.  */
 ]b4_user_pre_prologue[
 
 ]b4_null_define[
 
 ]b4_defines_if([[#include "@basename(]b4_spec_defines_file[@)"]],
-              [b4_shared_declarations])[
+               [b4_shared_declarations])[
 
 /* Enabling verbose error messages.  */
 #ifdef YYERROR_VERBOSE
@@ -2294,12 +2294,10 @@ yyrecoverSyntaxError (yyGLRStack* yystackp]b4_user_formals[)
 #endif
 ])
 m4_ifdef([b4_initial_action], [
-m4_pushdef([b4_at_dollar],     [yylloc])dnl
-m4_pushdef([b4_dollar_dollar], [yylval])dnl
+b4_dollar_pushdef([yylval], [], [yylloc])dnl
   /* User initialization code.  */
   b4_user_initial_action
-m4_popdef([b4_dollar_dollar])dnl
-m4_popdef([b4_at_dollar])])dnl
+b4_dollar_popdef])[]dnl
 [
   if (! yyinitGLRStack (yystackp, YYINITDEPTH))
     goto yyexhaustedlab;

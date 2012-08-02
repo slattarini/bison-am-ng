@@ -92,8 +92,14 @@ struct symbol
   /** The location of its first occurrence.  */
   location location;
 
-  /** Its \c \%type.  */
+  /** Its \c \%type.
+
+      Beware that this is the type_name as was entered by the user,
+      including silly things such as "]" if she entered "%token <]> t".
+      Therefore, when outputting type_name to M4, be sure to escape it
+      into "@}".  See quoted_output for instance.  */
   uniqstr type_name;
+
   /** Its \c \%type's location.  */
   location type_location;
 
@@ -101,9 +107,9 @@ struct symbol
       symbol.
 
       Access this field only through <tt>symbol</tt>'s interface functions. For
-      Example, if <tt>symbol::destructor = NULL</tt> (resp. <tt>symbol::printer
+      example, if <tt>symbol::destructor = NULL</tt> (resp. <tt>symbol::printer
       = NULL</tt>), a default \c \%destructor (resp. \%printer) or a per-type
-      \c symbol_destructor_printer_get will compute the corect one. */
+      \c symbol_destructor_printer_get will compute the correct one. */
   code_props props[CODE_PROPS_SIZE];
 
   symbol_number number;
@@ -149,7 +155,7 @@ symbol *dummy_symbol_get (location loc);
 `--------------------*/
 
 /** Print a symbol (for debugging). */
-void symbol_print (symbol *s, FILE *f);
+void symbol_print (symbol const *s, FILE *f);
 
 /** Is this a dummy nonterminal?  */
 bool symbol_is_dummy (const symbol *sym);
@@ -179,15 +185,14 @@ void symbol_code_props_set (symbol *sym, code_props_type kind,
                             code_props const *destructor);
 
 /** Get the computed \c \%destructor or \c %printer for \c sym, which was
-initialized with \c code_props_none_init if there's no \c \%destructor or
-\c %printer.  */
-code_props const *symbol_code_props_get (symbol const *sym,
-                                         code_props_type kind);
+    initialized with \c code_props_none_init if there's no \c \%destructor or
+    \c %printer.  */
+code_props *symbol_code_props_get (symbol *sym, code_props_type kind);
 
-/* Set the \c precedence associated with \c sym.
+/** Set the \c precedence associated with \c sym.
 
-   Ensure that \a symbol is a terminal.
-   Do nothing if invoked with \c undef_assoc as \c assoc.  */
+    Ensure that \a symbol is a terminal.
+    Do nothing if invoked with \c undef_assoc as \c assoc.  */
 void symbol_precedence_set (symbol *sym, int prec, assoc a, location loc);
 
 /** Set the \c class associated with \c sym.  */
@@ -277,17 +282,5 @@ void symbols_check_defined (void);
    Perform various sanity checks, assign symbol numbers, and set up
    #token_translations.  */
 void symbols_pack (void);
-
-
-/*---------------------------------------.
-| Default %destructor's and %printer's.  |
-`---------------------------------------*/
-
-/** Set the default \c \%destructor or \c \%printer for tagged values.  */
-void default_tagged_code_props_set (code_props_type kind,
-                                    code_props const *code);
-/** Set the default \c \%destructor or \c \%printer for tagless values.  */
-void default_tagless_code_props_set (code_props_type kind,
-                                     code_props const *destructor);
 
 #endif /* !SYMTAB_H_ */

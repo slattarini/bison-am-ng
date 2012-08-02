@@ -284,7 +284,7 @@ m4_define([b4_shared_declarations],
 [b4_cpp_guard_open([b4_spec_defines_file])[
 ]b4_declare_yydebug[
 ]b4_percent_code_get([[requires]])[
-]b4_token_enums_defines(b4_tokens)[
+]b4_token_enums_defines[
 ]b4_declare_yylstype[
 ]b4_declare_yyparse[
 ]b4_percent_code_get([[provides]])[
@@ -637,21 +637,6 @@ static const ]b4_int_type_for([b4_toknum])[ yytoknum[] =
 #define YYABORT         goto yyabortlab
 #define YYERROR         goto yyerrorlab
 
-
-/* Like YYERROR except do call yyerror.  This remains here temporarily
-   to ease the transition to the new meaning of YYERROR, for GCC.
-   Once GCC version 2 has supplanted version 1, this can go.  However,
-   YYFAIL appears to be in use.  Nevertheless, it is formally deprecated
-   in Bison 2.4.2's NEWS entry, where a plan to phase it out is
-   discussed.  */
-
-#define YYFAIL          goto yyerrlab
-#if defined YYFAIL
-  /* This is here to suppress warnings from the GCC cpp's
-     -Wunused-macros.  Normally we don't worry about that warning, but
-     some users do, and we want to make it easy for users to remove
-     YYFAIL uses, which will produce warnings from Bison 2.5.  */
-#endif
 
 #define YYRECOVERING()  (!!yyerrstatus)
 
@@ -1177,10 +1162,6 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
   int yycount = 0;
 
   /* There are many possibilities here to consider:
-     - Assume YYFAIL is not used.  It's too flawed to consider.  See
-       <http://lists.gnu.org/archive/html/bison-patches/2009-12/msg00024.html>
-       for details.  YYERROR is fine as it does not invoke this
-       function.
      - If this state is a consistent state with a default action, then
        the only way this function was invoked is if the default action
        is an error action.  In that case, don't check for expected
@@ -1503,17 +1484,16 @@ b4_c_function_def([[yyparse]], [[int]], b4_parse_param)[
   yylloc.first_column = yylloc.last_column = ]b4_location_initial_column[;
 #endif]])
 m4_ifdef([b4_initial_action],[
-m4_pushdef([b4_at_dollar],     [m4_define([b4_at_dollar_used])yylloc])dnl
-m4_pushdef([b4_dollar_dollar], [m4_define([b4_dollar_dollar_used])yylval])dnl
+b4_dollar_pushdef([m4_define([b4_dollar_dollar_used])yylval], [],
+                  [m4_define([b4_at_dollar_used])yylloc])dnl
 /* User initialization code.  */
 b4_user_initial_action
-m4_popdef([b4_dollar_dollar])dnl
-m4_popdef([b4_at_dollar])])dnl
+b4_dollar_popdef[]dnl
 m4_ifdef([b4_dollar_dollar_used],[[  yyvsp[0] = yylval;
 ]])dnl
 m4_ifdef([b4_at_dollar_used], [[  yylsp[0] = yylloc;
-]])[
-  goto yysetstate;
+]])])dnl
+[  goto yysetstate;
 
 /*------------------------------------------------------------.
 | yynewstate -- Push a new state, which is found in yystate.  |
@@ -1769,9 +1749,9 @@ yyreduce:
   goto yynewstate;
 
 
-/*------------------------------------.
-| yyerrlab -- here on detecting error |
-`------------------------------------*/
+/*--------------------------------------.
+| yyerrlab -- here on detecting error.  |
+`--------------------------------------*/
 yyerrlab:
   /* Make sure we have latest lookahead translation.  See comments at
      user semantic actions for why this is necessary.  */

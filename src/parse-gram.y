@@ -30,6 +30,7 @@
 #include "quotearg.h"
 #include "reader.h"
 #include "symlist.h"
+#include "symtab.h"
 #include "scan-gram.h"
 #include "scan-code.h"
 #include "xmemdup0.h"
@@ -185,30 +186,30 @@ static char const *char_name (char);
 %token TAG_NONE        "<>"
 
 %type <character> CHAR
-%printer { fputs (char_name ($$), stderr); } CHAR
+%printer { fputs (char_name ($$), yyo); } CHAR
 
 /* braceless is not to be used for rule or symbol actions, as it
    calls code_props_plain_init.  */
 %type <chars> STRING "%{...%}" EPILOGUE braceless content.opt
 %type <code> "{...}" "%?{...}"
-%printer { fputs (quotearg_style (c_quoting_style, $$), stderr); }
+%printer { fputs (quotearg_style (c_quoting_style, $$), yyo); }
          STRING
-%printer { fprintf (stderr, "{\n%s\n}", $$); }
+%printer { fprintf (yyo, "{\n%s\n}", $$); }
          braceless content.opt "{...}" "%{...%}" EPILOGUE
 
-%type <uniqstr> BRACKETED_ID ID ID_COLON PERCENT_FLAG TAG variable
-%printer { fputs ($$, stderr); } <uniqstr>
-%printer { fprintf (stderr, "[%s]", $$); } BRACKETED_ID
-%printer { fprintf (stderr, "%s:", $$); } ID_COLON
-%printer { fprintf (stderr, "%%%s", $$); } PERCENT_FLAG
-%printer { fprintf (stderr, "<%s>", $$); } TAG
+%type <uniqstr> BRACKETED_ID ID ID_COLON PERCENT_FLAG TAG tag variable
+%printer { fputs ($$, yyo); } <uniqstr>
+%printer { fprintf (yyo, "[%s]", $$); } BRACKETED_ID
+%printer { fprintf (yyo, "%s:", $$); } ID_COLON
+%printer { fprintf (yyo, "%%%s", $$); } PERCENT_FLAG
+%printer { fprintf (yyo, "<%s>", $$); } TAG tag
 
 %type <integer> INT
-%printer { fprintf (stderr, "%d", $$); } <integer>
+%printer { fprintf (yyo, "%d", $$); } <integer>
 
 %type <symbol> id id_colon string_as_id symbol symbol.prec
-%printer { fprintf (stderr, "%s", $$->tag); } <symbol>
-%printer { fprintf (stderr, "%s:", $$->tag); } id_colon
+%printer { fprintf (yyo, "%s", $$->tag); } <symbol>
+%printer { fprintf (yyo, "%s:", $$->tag); } id_colon
 
 %type <assoc> precedence_declarator
 %type <list>  symbols.1 symbols.prec generic_symlist generic_symlist_item
@@ -386,19 +387,17 @@ grammar_declaration:
     {
       grammar_start_symbol_set ($2, @2);
     }
-| "%destructor" "{...}" generic_symlist
+| code_props_type "{...}" generic_symlist
     {
-      symbol_list *list;
-      for (list = $3; list; list = list->next)
-        symbol_list_code_props_set (list, destructor, @2, $2);
-      symbol_list_free ($3);
-    }
-| "%printer" "{...}" generic_symlist
-    {
-      symbol_list *list;
-      for (list = $3; list; list = list->next)
-        symbol_list_code_props_set (list, printer, @2, $2);
-      symbol_list_free ($3);
+      code_props code;
+      code_props_symbol_action_init (&code, $2, @2);
+      code_props_translate_code (&code);
+      {
+        symbol_list *list;
+        for (list = $3; list; list = list->next)
+          symbol_list_code_props_set (list, $1, &code);
+        symbol_list_free ($3);
+      }
     }
 | "%default-prec"
     {
@@ -422,6 +421,13 @@ grammar_declaration:
     }
 ;
 
+%type <code_type> code_props_type;
+%union {code_props_type code_type;};
+%printer { fprintf (yyo, "%s", code_props_type_string ($$)); } <code_type>;
+code_props_type:
+  "%destructor"  { $$ = destructor; }
+| "%printer"     { $$ = printer; }
+;
 
 /*---------.
 | %union.  |
@@ -503,9 +509,9 @@ symbols.prec:
 ;
 
 symbol.prec:
-    symbol { $$ = $1; }
-  | symbol INT { $$ = $1; symbol_user_token_number_set ($1, $2, @2); }
-  ;
+  symbol     { $$ = $1; }
+| symbol INT { $$ = $1; symbol_user_token_number_set ($1, $2, @2); }
+;
 
 /* One or more symbols to be %typed. */
 symbols.1:
@@ -522,9 +528,13 @@ generic_symlist:
 
 generic_symlist_item:
   symbol    { $$ = symbol_list_sym_new ($1, @1); }
-| TAG       { $$ = symbol_list_type_new ($1, @1); }
-| "<*>"     { $$ = symbol_list_default_tagged_new (@1); }
-| "<>"      { $$ = symbol_list_default_tagless_new (@1); }
+| tag       { $$ = symbol_list_type_new ($1, @1); }
+;
+
+tag:
+  TAG
+| "<*>" { $$ = uniqstr_new ("*"); }
+| "<>"  { $$ = uniqstr_new (""); }
 ;
 
 /* One token definition.  */

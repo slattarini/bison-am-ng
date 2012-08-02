@@ -98,19 +98,19 @@ m4_define([b4_rhs_location],
 # Same as in C, but using references instead of pointers.
 m4_define([b4_symbol_action],
 [b4_symbol_if([$1], [has_$2],
-[m4_pushdef([b4_dollar_dollar],
-    [b4_symbol_value_template([yysym.value],
-                              b4_symbol_if([$1], [has_type],
-                                           [b4_symbol([$1], [type])]))])dnl
-m4_pushdef([b4_at_dollar], [yysym.location])dnl
+[m4_pushdef([b4_symbol_value], m4_defn([b4_symbol_value_template]))[]dnl
+b4_dollar_pushdef([yysym.value],
+                   b4_symbol_if([$1], [has_type],
+                                [m4_dquote(b4_symbol([$1], [type]))]),
+                   [yysym.location])dnl
       b4_symbol_case_([$1])
 b4_syncline([b4_symbol([$1], [$2_line])], ["b4_symbol([$1], [$2_file])"])
         b4_symbol([$1], [$2])
 b4_syncline([@oline@], [@ofile@])
         break;
 
-m4_popdef([b4_at_dollar])dnl
-m4_popdef([b4_dollar_dollar])dnl
+m4_popdef([b4_symbol_value])[]dnl
+b4_dollar_popdef[]dnl
 ])])
 
 
@@ -120,10 +120,6 @@ m4_pushdef([b4_copyright_years],
 m4_define([b4_parser_class_name],
           [b4_percent_define_get([[parser_class_name]])])
 
-# The header is mandatory.
-b4_defines_if([],
-              [b4_fatal([b4_skeleton[: using %%defines is mandatory]])])
-
 b4_locations_if([b4_percent_define_ifdef([[location_type]], [],
   [# Backward compatibility.
    m4_define([b4_location_constructors])
@@ -131,36 +127,32 @@ b4_locations_if([b4_percent_define_ifdef([[location_type]], [],
 m4_include(b4_pkgdatadir/[stack.hh])
 b4_variant_if([m4_include(b4_pkgdatadir/[variant.hh])])
 
-# We do want M4 expansion after # for CPP macros.
-m4_changecom()
-m4_divert_push(0)dnl
-@output(b4_spec_defines_file@)@
-b4_copyright([Skeleton interface for Bison LALR(1) parsers in C++])
-[
-/**
- ** \file ]b4_spec_defines_file[
- ** Define the ]b4_namespace_ref[::parser class.
- */
-
-/* C++ LALR(1) parser skeleton written by Akim Demaille.  */
-
-]b4_cpp_guard_open([b4_spec_defines_file])[
-]b4_percent_code_get([[requires]])[
+# b4_shared_declarations
+# ----------------------
+# Declaration that might either go into the header (if --defines)
+# or open coded in the parser body.
+m4_define([b4_shared_declarations],
+[b4_percent_code_get([[requires]])[
 ]b4_parse_assert_if([# include <cassert>])[
-# include <stdexcept>
-# include <string>
+# include <deque>
 # include <iostream>
+# include <stdexcept>
+# include <string>]b4_defines_if([[
 # include "stack.hh"
 ]b4_locations_if([b4_percent_define_ifdef([[location_type]], [],
-                                          [[# include "location.hh"]])])[
-
-]b4_variant_if([b4_namespace_open
-b4_variant_define
-b4_namespace_close])[
+                                          [[# include "location.hh"]])])])[
 
 ]b4_YYDEBUG_define[
 
 ]b4_namespace_open[
+
+]b4_defines_if([],
+[b4_stack_define
+b4_locations_if([b4_percent_define_ifdef([[location_type]], [],
+                                         [b4_position_define
+b4_location_define])])])[
+
+]b4_variant_if([b4_variant_define])[
 
   /// A Bison parser.
   class ]b4_parser_class_name[
@@ -189,10 +181,10 @@ b4_namespace_close])[
     void set_debug_level (debug_level_type l);
 #endif
 
-    /// Report a syntax error.]b4_locations_if([
-    /// \param loc    where the syntax error is found.])[
+    /// Report a syntax error.]b4_locations_if([[
+    /// \param loc    where the syntax error is found.]])[
     /// \param msg    a description of the syntax error.
-    virtual void error (]b4_locations_if([const location_type& loc, ])[const std::string& msg);
+    virtual void error (]b4_locations_if([[const location_type& loc, ]])[const std::string& msg);
 
     /// Report a syntax error.
     void error (const syntax_error& err);
@@ -333,7 +325,7 @@ b4_public_types_define])[
 ]b4_namespace_close[
 
 ]b4_percent_define_flag_if([[global_tokens_and_yystype]],
-[b4_token_defines(b4_tokens)
+[b4_token_defines
 
 #ifndef ]b4_api_PREFIX[STYPE
  /* Redirection for backward compatibility.  */
@@ -341,7 +333,30 @@ b4_public_types_define])[
 #endif
 ])[
 ]b4_percent_code_get([[provides]])[
+]])
+
+# We do want M4 expansion after # for CPP macros.
+m4_changecom()
+b4_defines_if(
+[m4_divert_push(0)dnl
+@output(b4_spec_defines_file@)@
+b4_copyright([Skeleton interface for Bison LALR(1) parsers in C++])
+[
+/**
+ ** \file ]b4_spec_defines_file[
+ ** Define the ]b4_namespace_ref[::parser class.
+ */
+
+/* C++ LALR(1) parser skeleton written by Akim Demaille.  */
+
+]b4_cpp_guard_open([b4_spec_defines_file])[
+]b4_shared_declarations[
 ]b4_cpp_guard_close([b4_spec_defines_file])
+m4_divert_pop(0)dnl
+])
+
+
+m4_divert_push(0)dnl
 @output(b4_parser_file_name@)@
 b4_copyright([Skeleton implementation for Bison LALR(1) parsers in C++])
 b4_percent_code_get([[top]])[]dnl
@@ -350,16 +365,17 @@ m4_if(b4_prefix, [yy], [],
 // Take the name prefix into account.
 #define yylex   b4_prefix[]lex])[
 
-/* First part of user declarations.  */
+// First part of user declarations.
 ]b4_user_pre_prologue[
 
-#include "@basename(]b4_spec_defines_file[@)"
+]b4_null_define[
+
+]b4_defines_if([[#include "@basename(]b4_spec_defines_file[@)"]],
+               [b4_shared_declarations])[
 
 /* User implementation prologue.  */
 ]b4_user_post_prologue[
 ]b4_percent_code_get[
-
-]b4_null_define[
 
 #ifndef YY_
 # if defined YYENABLE_NLS && YYENABLE_NLS
@@ -670,12 +686,10 @@ m4_if(b4_prefix, [yy], [],
     YYCDEBUG << "Starting parse" << std::endl;
 
 ]m4_ifdef([b4_initial_action], [
-m4_pushdef([b4_at_dollar],     [yyla.location])dnl
-m4_pushdef([b4_dollar_dollar], [yyla.value])dnl
+b4_dollar_pushdef([yyla.value], [], [yyla.location])dnl
     /* User initialization code.  */
     b4_user_initial_action
-m4_popdef([b4_dollar_dollar])dnl
-m4_popdef([b4_at_dollar])])dnl
+b4_dollar_popdef])[]dnl
 
   [  /* Initialize the stack.  The initial state will be set in
        yynewstate, since the latter expects the semantical and the

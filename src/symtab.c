@@ -46,20 +46,6 @@ symbol *accept = NULL;
 symbol *startsymbol = NULL;
 location startsymbol_location;
 
-/*---------------------------------------.
-| Default %destructor's and %printer's.  |
-`---------------------------------------*/
-
-static code_props default_tagged_code_props[CODE_PROPS_SIZE] =
-  {
-    CODE_PROPS_NONE_INIT,
-    CODE_PROPS_NONE_INIT,
-  };
-static code_props default_tagless_code_props[CODE_PROPS_SIZE] =
-  {
-    CODE_PROPS_NONE_INIT,
-    CODE_PROPS_NONE_INIT,
-  };
 
 /*---------------------------------.
 | Create a new symbol, named TAG.  |
@@ -147,7 +133,7 @@ semantic_type_new (uniqstr tag, const location *loc)
     fprintf (f, " %s { %s }", #Attr, s->props[Attr].code)
 
 void
-symbol_print (symbol *s, FILE *f)
+symbol_print (symbol const *s, FILE *f)
 {
   if (s)
     {
@@ -274,9 +260,8 @@ semantic_type_code_props_set (semantic_type *type,
 | Get the computed %destructor or %printer for SYM.  |
 `---------------------------------------------------*/
 
-code_props const *
-symbol_code_props_get (symbol const *sym,
-                       code_props_type kind)
+code_props *
+symbol_code_props_get (symbol *sym, code_props_type kind)
 {
   /* Per-symbol code props.  */
   if (sym->props[kind].code)
@@ -285,19 +270,21 @@ symbol_code_props_get (symbol const *sym,
   /* Per-type code props.  */
   if (sym->type_name)
     {
-      code_props const *code =
+      code_props *code =
         &semantic_type_get (sym->type_name, NULL)->props[kind];
       if (code->code)
         return code;
     }
 
   /* Apply default code props's only to user-defined symbols.  */
-  if (sym->tag[0] == '$' || sym == errtoken)
-    return &code_props_none;
-
-  if (sym->type_name)
-    return &default_tagged_code_props[kind];
-  return &default_tagless_code_props[kind];
+  if (sym->tag[0] != '$' && sym != errtoken)
+    {
+      code_props *code =
+        &semantic_type_get (sym->type_name ? "*" : "", NULL)->props[kind];
+      if (code->code)
+        return code;
+    }
+  return &code_props_none;
 }
 
 /*-----------------------------------------------------------------.
@@ -400,15 +387,15 @@ symbol_check_defined (symbol *sym)
         {
         case used:
           complain_at (sym->location, Wother,
-                   _("symbol %s is used, but is not defined as a token"
-                     " and has no rules"),
-                   sym->tag);
+                       _("symbol %s is used, but is not defined as a token"
+                         " and has no rules"),
+                       sym->tag);
           break;
         case undeclared:
         case needed:
           complain_at (sym->location, complaint,
-                    _("symbol %s is used, but is not defined as a token"
-                      " and has no rules"),
+                       _("symbol %s is used, but is not defined as a token"
+                         " and has no rules"),
                     sym->tag);
           break;
         case declared:
@@ -421,13 +408,7 @@ symbol_check_defined (symbol *sym)
     }
 
   for (int i = 0; i < 2; ++i)
-    if (sym->props[i].kind == CODE_PROPS_NONE && sym->type_name)
-      {
-        semantic_type *sem_type = semantic_type_get (sym->type_name, NULL);
-        if (sem_type
-            && sem_type->props[i].kind != CODE_PROPS_NONE)
-          sem_type->props[i].is_used = true;
-      }
+    symbol_code_props_get (sym, i)->is_used = true;
 
   /* Set the semantic type status associated to the current symbol to
      'declared' so that we could check semantic types unnecessary uses. */
@@ -444,14 +425,17 @@ symbol_check_defined (symbol *sym)
 static inline bool
 semantic_type_check_defined (semantic_type *sem_type)
 {
-  if (sem_type->status == declared)
+  // <*> and <> do not have to be "declared".
+  if (sem_type->status == declared
+      || !*sem_type->tag
+      || STREQ(sem_type->tag, "*"))
     {
       for (int i = 0; i < 2; ++i)
         if (sem_type->props[i].kind != CODE_PROPS_NONE
             && ! sem_type->props[i].is_used)
           complain_at (sem_type->location, Wother,
-                   _("useless %s for type <%s>"),
-                   code_props_type_string (i), sem_type->tag);
+                       _("useless %s for type <%s>"),
+                       code_props_type_string (i), sem_type->tag);
     }
   else
     complain_at (sem_type->location, Wother,
@@ -976,37 +960,4 @@ symbols_pack (void)
     complain_at (startsymbol_location, fatal,
                  _("the start symbol %s is a token"),
                  startsymbol->tag);
-}
-
-
-/*--------------------------------------------------.
-| Set default tagged/tagless %destructor/%printer.  |
-`--------------------------------------------------*/
-
-void
-default_tagged_code_props_set (code_props_type kind, code_props const *code)
-{
-  if (default_tagged_code_props[kind].code)
-    {
-      complain_at (code->location, complaint,
-                   _("redeclaration for default tagged %s"),
-                   code_props_type_string (kind));
-      complain_at (default_tagged_code_props[kind].location, complaint,
-                   _("previous declaration"));
-    }
-  default_tagged_code_props[kind] = *code;
-}
-
-void
-default_tagless_code_props_set (code_props_type kind, code_props const *code)
-{
-  if (default_tagless_code_props[kind].code)
-    {
-      complain_at (code->location, complaint,
-                   _("redeclaration for default tagless %s"),
-                   code_props_type_string (kind));
-      complain_at (default_tagless_code_props[kind].location, complaint,
-                   _("previous declaration"));
-    }
-  default_tagless_code_props[kind] = *code;
 }

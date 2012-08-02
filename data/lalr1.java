@@ -133,7 +133,7 @@ b4_locations_if([[
     /** Token returned by the scanner to signal the end of its input.  */
     public static final int EOF = 0;
 
-]b4_token_enums(b4_tokens)[
+]b4_token_enums[
 
     ]b4_locations_if([[/**
      * Method to retrieve the beginning position of the last scanned token.
@@ -502,12 +502,10 @@ b4_lexer_if([[
     yyerrstatus_ = 0;
 
 ]m4_ifdef([b4_initial_action], [
-m4_pushdef([b4_at_dollar],     [yylloc])dnl
-m4_pushdef([b4_dollar_dollar], [yylval])dnl
+b4_dollar_pushdef([yylval], [], [yylloc])dnl
     /* User initialization code.  */
     b4_user_initial_action
-m4_popdef([b4_dollar_dollar])dnl
-m4_popdef([b4_at_dollar])])dnl
+b4_dollar_popdef])[]dnl
 
   [  /* Initialize the stack.  */
     yystack.push (yystate, yylval]b4_locations_if([, yylloc])[);
@@ -728,11 +726,6 @@ m4_popdef([b4_at_dollar])])dnl
     if (yyErrorVerbose)
       {
         /* There are many possibilities here to consider:
-           - Assume YYFAIL is not used.  It's too flawed to consider.
-             See
-             <http://lists.gnu.org/archive/html/bison-patches/2009-12/msg00024.html>
-             for details.  YYERROR is fine as it does not invoke this
-             function.
            - If this state is a consistent state with a default action,
              then the only way this function was invoked is if the
              default action is an error action.  In that case, don't

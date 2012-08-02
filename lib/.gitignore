@@ -34,6 +34,8 @@
 /close.c
 /closeout.c
 /closeout.h
+/concat-filename.c
+/concat-filename.h
 /config.charset
 /config.h
 /config.in.h
@@ -61,6 +63,7 @@
 /fd-hook.h
 /fd-safer-flag.c
 /fd-safer.c
+/filename.h
 /float+.h
 /float.c
 /float.h
@@ -122,6 +125,7 @@
 /nonblocking.h
 /obstack.c
 /obstack.h
+/obstack_printf.c
 /open.c
 /pathmax.h
 /perror.c
@@ -222,6 +226,7 @@
 /sys_socket.in.h
 /sys_stat.h
 /sys_stat.in.h
+/sys_types.in.h
 /sys_wait.h
 /sys_wait.in.h
 /sysexits.in.h
@@ -258,14 +263,10 @@
 /xalloc-die.c
 /xalloc-oversized.h
 /xalloc.h
+/xconcat-filename.c
 /xmalloc.c
+/xmemdup0.c
+/xmemdup0.h
 /xsize.h
 /xstrndup.c
 /xstrndup.h
-/xmemdup0.c
-/xmemdup0.h
-/sys_types.in.h
-/concat-filename.c
-/concat-filename.h
-/filename.h
-/xconcat-filename.c
