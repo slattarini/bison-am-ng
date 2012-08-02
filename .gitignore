@@ -4,6 +4,7 @@
 /*.flc
 /*.prj
 /.am/
+/.mk/
 /.tarball-version
 /.version
 /ABOUT-NLS
