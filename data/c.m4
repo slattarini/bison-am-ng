@@ -50,7 +50,7 @@ m4_define([b4_cpp_guard_close],
 ## ---------------- ##
 
 # b4_comment_(TEXT, OPEN, CONTINUE, END)
-# -------------------------------------
+# --------------------------------------
 # Put TEXT in comment.  Avoid trailing spaces: don't indent empty lines.
 # Avoid adding indentation to the first line, as the indentation comes
 # from OPEN.  That's why we don't patsubst([$1], [^\(.\)], [   \1]).
@@ -61,21 +61,15 @@ m4_define([b4_comment_], [$2[]m4_bpatsubst([$1], [
 $3\1])$4])
 
 
-# b4_c_comment(TEXT, [PREFIX])
-# ----------------------------
+# b4_comment(TEXT, [PREFIX])
+# --------------------------
 # Put TEXT in comment.  Avoid trailing spaces: don't indent empty lines.
 # Avoid adding indentation to the first line, as the indentation comes
 # from "/*".  That's why we don't patsubst([$1], [^\(.\)], [   \1]).
 #
 # Prefix all the output lines with PREFIX.
-m4_define([b4_c_comment],
+m4_define([b4_comment],
 [b4_comment_([$1], [$2/* ], [$2   ], [$2  */])])
-
-
-# b4_comment(TEXT, [PREFIX])
-# --------------------------
-# By default, C comments.
-m4_define([b4_comment], [b4_c_comment($@)])
 
 
 # b4_identification
@@ -134,7 +128,7 @@ m4_define_default([b4_union_name], [b4_api_PREFIX[]STYPE])
 # b4_user_args
 # ------------
 m4_define([b4_user_args],
-[m4_ifset([b4_parse_param], [, b4_c_args(b4_parse_param)])])
+[m4_ifset([b4_parse_param], [, b4_args(b4_parse_param)])])
 
 
 # b4_parse_param
@@ -201,12 +195,11 @@ m4_define([b4_int_type_for],
 # --------------------------------------------
 # Without inducing a comparison warning from the compiler, check if the
 # literal value LITERAL equals VALUE from table TABLE, which must have
-# TABLE_min and TABLE_max defined.  YYID must be defined as an identity
-# function that suppresses warnings about constant conditions.
+# TABLE_min and TABLE_max defined.
 m4_define([b4_table_value_equals],
 [m4_if(m4_eval($3 < m4_indir([b4_]$1[_min])
                || m4_indir([b4_]$1[_max]) < $3), [1],
-       [[YYID (0)]],
+       [[0]],
        [[((]$2[) == (]$3[))]])])
 
 
@@ -239,7 +232,7 @@ m4_define([b4_null], [YY_NULL])
 # -------------------------------------------------------------
 # Define "yy<TABLE-NAME>" which contents is CONTENT.
 m4_define([b4_integral_parser_table_define],
-[m4_ifvaln([$3], [b4_c_comment([$3], [  ])])dnl
+[m4_ifvaln([$3], [b4_comment([$3], [  ])])dnl
 static const b4_int_type_for([$2]) yy$1[[]] =
 {
   $2
@@ -317,106 +310,43 @@ m4_define([b4_symbol_value],
 
 
 
-## --------------------------------------------- ##
-## Defining C functions in both K&R and ANSI-C.  ##
-## --------------------------------------------- ##
+## ---------------------- ##
+## Defining C functions.  ##
+## ---------------------- ##
 
 
-# b4_modern_c
-# -----------
-# A predicate useful in #if to determine whether C is ancient or modern.
-#
-# If __STDC__ is defined, the compiler is modern.  IBM xlc 7.0 when run
-# as 'cc' doesn't define __STDC__ (or __STDC_VERSION__) for pedantic
-# reasons, but it defines __C99__FUNC__ so check that as well.
-# Microsoft C normally doesn't define these macros, but it defines _MSC_VER.
-# Consider a C++ compiler to be modern if it defines __cplusplus.
-#
-m4_define([b4_c_modern],
-  [[(defined __STDC__ || defined __C99__FUNC__ \
-     || defined __cplusplus || defined _MSC_VER)]])
-
-# b4_c_function_def(NAME, RETURN-VALUE, [DECL1, NAME1], ...)
-# ----------------------------------------------------------
-# Declare the function NAME.
-m4_define([b4_c_function_def],
-[#if b4_c_modern
-b4_c_ansi_function_def($@)
-#else
-$2
-$1 (b4_c_knr_formal_names(m4_shift2($@)))
-b4_c_knr_formal_decls(m4_shift2($@))
-#endif[]dnl
-])
-
-
-# b4_c_ansi_function_def(NAME, RETURN-VALUE, [DECL1, NAME1], ...)
-# ---------------------------------------------------------------
-# Declare the function NAME in ANSI.
-m4_define([b4_c_ansi_function_def],
+# b4_function_define(NAME, RETURN-VALUE, [DECL1, NAME1], ...)
+# -----------------------------------------------------------
+# Declare the function NAME in C.
+m4_define([b4_function_define],
 [$2
-$1 (b4_c_ansi_formals(m4_shift2($@)))[]dnl
+$1 (b4_formals(m4_shift2($@)))[]dnl
 ])
 
 
-# b4_c_ansi_formals([DECL1, NAME1], ...)
-# --------------------------------------
-# Output the arguments ANSI-C definition.
-m4_define([b4_c_ansi_formals],
+# b4_formals([DECL1, NAME1], ...)
+# -------------------------------
+# The formal arguments of a C function definition.
+m4_define([b4_formals],
 [m4_if([$#], [0], [void],
        [$#$1], [1], [void],
-               [m4_map_sep([b4_c_ansi_formal], [, ], [$@])])])
+               [m4_map_sep([b4_formal], [, ], [$@])])])
 
-m4_define([b4_c_ansi_formal],
+m4_define([b4_formal],
 [$1])
 
 
-# b4_c_knr_formal_names([DECL1, NAME1], ...)
-# ------------------------------------------
-# Output the argument names.
-m4_define([b4_c_knr_formal_names],
-[m4_map_sep([b4_c_knr_formal_name], [, ], [$@])])
 
-m4_define([b4_c_knr_formal_name],
-[$2])
+## ----------------------- ##
+## Declaring C functions.  ##
+## ----------------------- ##
 
 
-# b4_c_knr_formal_decls([DECL1, NAME1], ...)
-# ------------------------------------------
-# Output the K&R argument declarations.
-m4_define([b4_c_knr_formal_decls],
-[m4_map_sep([b4_c_knr_formal_decl],
-            [
-],
-            [$@])])
-
-m4_define([b4_c_knr_formal_decl],
-[    $1;])
-
-
-
-## ------------------------------------------------------------ ##
-## Declaring (prototyping) C functions in both K&R and ANSI-C.  ##
-## ------------------------------------------------------------ ##
-
-
-# b4_c_function_decl(NAME, RETURN-VALUE, [DECL1, NAME1], ...)
-# -----------------------------------------------------------
+# b4_function_declare(NAME, RETURN-VALUE, [DECL1, NAME1], ...)
+# ------------------------------------------------------------
 # Declare the function NAME.
-m4_define([b4_c_function_decl],
-[#if b4_c_modern
-b4_c_ansi_function_decl($@)
-#else
-$2 $1 ();
-#endif[]dnl
-])
-
-
-# b4_c_ansi_function_decl(NAME, RETURN-VALUE, [DECL1, NAME1], ...)
-# ----------------------------------------------------------------
-# Declare the function NAME.
-m4_define([b4_c_ansi_function_decl],
-[$2 $1 (b4_c_ansi_formals(m4_shift2($@)));[]dnl
+m4_define([b4_function_declare],
+[$2 $1 (b4_formals(m4_shift2($@)));[]dnl
 ])
 
 
@@ -427,21 +357,21 @@ m4_define([b4_c_ansi_function_decl],
 ## --------------------- ##
 
 
-# b4_c_function_call(NAME, RETURN-VALUE, [DECL1, NAME1], ...)
+# b4_function_call(NAME, RETURN-VALUE, [DECL1, NAME1], ...)
 # -----------------------------------------------------------
 # Call the function NAME with arguments NAME1, NAME2 etc.
-m4_define([b4_c_function_call],
-[$1 (b4_c_args(m4_shift2($@)))[]dnl
+m4_define([b4_function_call],
+[$1 (b4_args(m4_shift2($@)))[]dnl
 ])
 
 
-# b4_c_args([DECL1, NAME1], ...)
-# ------------------------------
+# b4_args([DECL1, NAME1], ...)
+# ----------------------------
 # Output the arguments NAME1, NAME2...
-m4_define([b4_c_args],
-[m4_map_sep([b4_c_arg], [, ], [$@])])
+m4_define([b4_args],
+[m4_map_sep([b4_arg], [, ], [$@])])
 
-m4_define([b4_c_arg],
+m4_define([b4_arg],
 [$2])
 
 
@@ -450,7 +380,7 @@ m4_define([b4_c_arg],
 ## ----------- ##
 
 # b4_sync_start(LINE, FILE)
-# -----------------------
+# -------------------------
 m4_define([b4_sync_start], [[#]line $1 $2])
 
 
@@ -476,18 +406,15 @@ b4_syncline([@oline@], [@ofile@])
     break;])
 
 
-# b4_yydestruct_generate(FUNCTION-DECLARATOR)
-# -------------------------------------------
-# Generate the "yydestruct" function, which declaration is issued using
-# FUNCTION-DECLARATOR, which may be "b4_c_ansi_function_def" for ISO C
-# or "b4_c_function_def" for K&R.
-m4_define_default([b4_yydestruct_generate],
+# b4_yydestruct_define
+# --------------------
+# Define the "yydestruct" function.
+m4_define_default([b4_yydestruct_define],
 [[/*-----------------------------------------------.
 | Release the memory associated to this symbol.  |
 `-----------------------------------------------*/
 
-/*ARGSUSED*/
-]$1([yydestruct],
+]b4_function_define([yydestruct],
     [static void],
     [[const char *yymsg],    [yymsg]],
     [[int yytype],           [yytype]],
@@ -510,19 +437,16 @@ m4_ifset([b4_parse_param], [, b4_parse_param]))[
 ])
 
 
-# b4_yy_symbol_print_generate(FUNCTION-DECLARATOR)
-# ------------------------------------------------
-# Generate the "yy_symbol_print" function, which declaration is issued using
-# FUNCTION-DECLARATOR, which may be "b4_c_ansi_function_def" for ISO C
-# or "b4_c_function_def" for K&R.
-m4_define_default([b4_yy_symbol_print_generate],
+# b4_yy_symbol_print_define
+# -------------------------
+# Define the "yy_symbol_print" function.
+m4_define_default([b4_yy_symbol_print_define],
 [[
 /*--------------------------------.
 | Print this symbol on YYOUTPUT.  |
 `--------------------------------*/
 
-/*ARGSUSED*/
-]$1([yy_symbol_value_print],
+]b4_function_define([yy_symbol_value_print],
     [static void],
                [[FILE *yyoutput],                       [yyoutput]],
                [[int yytype],                           [yytype]],
@@ -554,7 +478,7 @@ m4_if(b4_skeleton, ["yacc.c"],
 | Print this symbol on YYOUTPUT.  |
 `--------------------------------*/
 
-]$1([yy_symbol_print],
+]b4_function_define([yy_symbol_print],
     [static void],
                [[FILE *yyoutput],                       [yyoutput]],
                [[int yytype],                           [yytype]],
@@ -655,7 +579,7 @@ m4_define([b4_yylloc_default_define],
 #ifndef YYLLOC_DEFAULT
 # define YYLLOC_DEFAULT(Current, Rhs, N)                                \
     do                                                                  \
-      if (YYID (N))                                                     \
+      if (N)                                                            \
         {                                                               \
           (Current).first_line   = YYRHSLOC (Rhs, 1).first_line;        \
           (Current).first_column = YYRHSLOC (Rhs, 1).first_column;      \
@@ -669,6 +593,6 @@ m4_define([b4_yylloc_default_define],
           (Current).first_column = (Current).last_column =              \
             YYRHSLOC (Rhs, 0).last_column;                              \
         }                                                               \
-    while (YYID (0))
+    while (0)
 #endif
 ]])

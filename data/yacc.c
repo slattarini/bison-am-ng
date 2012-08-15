@@ -85,7 +85,7 @@ m4_define([b4_yacc_pure_if],
 # Arguments passed to yyerror: user args plus yylloc.
 m4_define([b4_yyerror_args],
 [b4_yacc_pure_if([b4_locations_if([&yylloc, ])])dnl
-m4_ifset([b4_parse_param], [b4_c_args(b4_parse_param), ])])
+m4_ifset([b4_parse_param], [b4_args(b4_parse_param), ])])
 
 
 # b4_lex_param
@@ -239,19 +239,19 @@ enum { YYPUSH_MORE = 4 };
 
 typedef struct ]b4_prefix[pstate ]b4_prefix[pstate;
 
-]b4_pull_if([b4_c_function_decl([b4_prefix[parse]], [[int]], b4_parse_param)
-])b4_c_function_decl([b4_prefix[push_parse]], [[int]],
+]b4_pull_if([b4_function_declare([b4_prefix[parse]], [[int]], b4_parse_param)
+])b4_function_declare([b4_prefix[push_parse]], [[int]],
   [[b4_prefix[pstate *ps]], [[ps]]]b4_pure_if([,
   [[[int pushed_char]], [[pushed_char]]],
   [[b4_api_PREFIX[STYPE const *pushed_val]], [[pushed_val]]]b4_locations_if([,
   [[b4_api_PREFIX[LTYPE const *pushed_loc]], [[pushed_loc]]]])])m4_ifset([b4_parse_param], [,
   b4_parse_param]))
-b4_pull_if([b4_c_function_decl([b4_prefix[pull_parse]], [[int]],
+b4_pull_if([b4_function_declare([b4_prefix[pull_parse]], [[int]],
   [[b4_prefix[pstate *ps]], [[ps]]]m4_ifset([b4_parse_param], [,
   b4_parse_param]))])
-b4_c_function_decl([b4_prefix[pstate_new]], [b4_prefix[pstate *]],
+b4_function_declare([b4_prefix[pstate_new]], [b4_prefix[pstate *]],
                     [[[void]], []])
-b4_c_function_decl([b4_prefix[pstate_delete]], [[void]],
+b4_function_declare([b4_prefix[pstate_delete]], [[void]],
                    [[b4_prefix[pstate *ps]], [[ps]]])dnl
 ])
 
@@ -259,13 +259,7 @@ b4_c_function_decl([b4_prefix[pstate_delete]], [[void]],
 # -------------------
 # When not the push parser.
 m4_define([b4_declare_yyparse_],
-[[#ifdef YYPARSE_PARAM
-]b4_c_function_decl(b4_prefix[parse], [int],
-                    [[void *YYPARSE_PARAM], [YYPARSE_PARAM]])[
-#else /* ! YYPARSE_PARAM */
-]b4_c_function_decl(b4_prefix[parse], [int], b4_parse_param)[
-#endif /* ! YYPARSE_PARAM */]dnl
-])
+[b4_function_declare(b4_prefix[parse], [int], b4_parse_param)])
 
 
 # b4_declare_yyparse
@@ -366,10 +360,8 @@ typedef unsigned char yytype_uint8;
 
 #ifdef YYTYPE_INT8
 typedef YYTYPE_INT8 yytype_int8;
-#elif ]b4_c_modern[
-typedef signed char yytype_int8;
 #else
-typedef short int yytype_int8;
+typedef signed char yytype_int8;
 #endif
 
 #ifdef YYTYPE_UINT16
@@ -389,7 +381,7 @@ typedef short int yytype_int16;
 #  define YYSIZE_T __SIZE_TYPE__
 # elif defined size_t
 #  define YYSIZE_T size_t
-# elif ! defined YYSIZE_T && ]b4_c_modern[
+# elif ! defined YYSIZE_T
 #  include <stddef.h> /* INFRINGES ON USER NAME SPACE */
 #  define YYSIZE_T size_t
 # else
@@ -412,20 +404,10 @@ typedef short int yytype_int16;
 #endif
 
 /* Suppress unused-variable warnings by "using" E.  */
-#if ! defined lint || defined __GNUC__
+#ifdef __GNUC__
 # define YYUSE(e) ((void) (e))
 #else
 # define YYUSE(e) /* empty */
-#endif
-
-/* Identity function, used to suppress warnings about constant conditions.  */
-#ifndef lint
-# define YYID(n) (n)
-#else
-]b4_c_function_def([YYID], [static int], [[int yyi], [yyi]])[
-{
-  return yyi;
-}
 #endif
 
 #if ]b4_lac_if([[1]], [[! defined yyoverflow || YYERROR_VERBOSE]])[
@@ -446,7 +428,7 @@ b4_push_if([], [b4_lac_if([], [[
 #    define alloca _alloca
 #   else
 #    define YYSTACK_ALLOC alloca
-#    if ! defined _ALLOCA_H && ! defined EXIT_SUCCESS && ]b4_c_modern[
+#    if ! defined _ALLOCA_H && ! defined EXIT_SUCCESS
 #     include <stdlib.h> /* INFRINGES ON USER NAME SPACE */
       /* Use EXIT_SUCCESS as a witness for stdlib.h.  */
 #     ifndef EXIT_SUCCESS
@@ -459,7 +441,7 @@ b4_push_if([], [b4_lac_if([], [[
 
 # ifdef YYSTACK_ALLOC
    /* Pacify GCC's `empty if-body' warning.  */
-#  define YYSTACK_FREE(Ptr) do { /* empty */; } while (YYID (0))
+#  define YYSTACK_FREE(Ptr) do { /* empty */; } while (0)
 #  ifndef YYSTACK_ALLOC_MAXIMUM
     /* The OS might guarantee only one guard page at the bottom of the stack,
        and a page size can be as small as 4096 bytes.  So we cannot safely
@@ -483,13 +465,13 @@ b4_push_if([], [b4_lac_if([], [[
 #  endif
 #  ifndef YYMALLOC
 #   define YYMALLOC malloc
-#   if ! defined malloc && ! defined EXIT_SUCCESS && ]b4_c_modern[
+#   if ! defined malloc && ! defined EXIT_SUCCESS
 void *malloc (YYSIZE_T); /* INFRINGES ON USER NAME SPACE */
 #   endif
 #  endif
 #  ifndef YYFREE
 #   define YYFREE free
-#   if ! defined free && ! defined EXIT_SUCCESS && ]b4_c_modern[
+#   if ! defined free && ! defined EXIT_SUCCESS
 void free (void *); /* INFRINGES ON USER NAME SPACE */
 #   endif
 #  endif
@@ -540,7 +522,7 @@ union yyalloc
         yynewbytes = yystacksize * sizeof (*Stack) + YYSTACK_GAP_MAXIMUM; \
         yyptr += yynewbytes / sizeof (*yyptr);                          \
       }                                                                 \
-    while (YYID (0))
+    while (0)
 
 #endif
 
@@ -559,7 +541,7 @@ union yyalloc
           for (yyi = 0; yyi < (Count); yyi++)   \
             (Dst)[yyi] = (Src)[yyi];            \
         }                                       \
-      while (YYID (0))
+      while (0)
 #  endif
 # endif
 #endif /* !YYCOPY_NEEDED */
@@ -656,7 +638,7 @@ do                                                              \
       yyerror (]b4_yyerror_args[YY_("syntax error: cannot back up")); \
       YYERROR;                                                  \
     }                                                           \
-while (YYID (0))
+while (0)
 
 
 #define YYTERROR        1
@@ -694,7 +676,7 @@ while (YYID (0))
 #ifdef YYLEX_PARAM
 # define YYLEX yylex (]b4_pure_if([&yylval[]b4_locations_if([, &yylloc]), ])[YYLEX_PARAM)
 #else
-# define YYLEX ]b4_c_function_call([yylex], [int], b4_lex_param)[
+# define YYLEX ]b4_function_call([yylex], [int], b4_lex_param)[
 #endif
 
 /* Enable debugging if requested.  */
@@ -709,7 +691,7 @@ while (YYID (0))
 do {                                            \
   if (yydebug)                                  \
     YYFPRINTF Args;                             \
-} while (YYID (0))
+} while (0)
 
 # define YY_SYMBOL_PRINT(Title, Type, Value, Location)                    \
 do {                                                                      \
@@ -720,16 +702,16 @@ do {                                                                      \
                   Type, Value]b4_locations_if([, Location])[]b4_user_args[); \
       YYFPRINTF (stderr, "\n");                                           \
     }                                                                     \
-} while (YYID (0))
+} while (0)
 
-]b4_yy_symbol_print_generate([b4_c_function_def])[
+]b4_yy_symbol_print_define[
 
 /*------------------------------------------------------------------.
 | yy_stack_print -- Print the state stack from its BOTTOM up to its |
 | TOP (included).                                                   |
 `------------------------------------------------------------------*/
 
-]b4_c_function_def([yy_stack_print], [static void],
+]b4_function_define([yy_stack_print], [static void],
                    [[yytype_int16 *yybottom], [yybottom]],
                    [[yytype_int16 *yytop],    [yytop]])[
 {
@@ -746,14 +728,14 @@ do {                                                                      \
 do {                                                            \
   if (yydebug)                                                  \
     yy_stack_print ((Bottom), (Top));                           \
-} while (YYID (0))
+} while (0)
 
 
 /*------------------------------------------------.
 | Report that the YYRULE is going to be reduced.  |
 `------------------------------------------------*/
 
-]b4_c_function_def([yy_reduce_print], [static void],
+]b4_function_define([yy_reduce_print], [static void],
                    [[yytype_int16 *yyssp], [yyssp]],
                    [[YYSTYPE *yyvsp], [yyvsp]],
     b4_locations_if([[[YYLTYPE *yylsp], [yylsp]],
@@ -782,7 +764,7 @@ do {                                                            \
 do {                                    \
   if (yydebug)                          \
     yy_reduce_print (yyssp, yyvsp, ]b4_locations_if([yylsp, ])[Rule]b4_user_args[); \
-} while (YYID (0))
+} while (0)
 
 /* Nonzero means print parse trace.  It is left uninitialized so that
    multiple parsers can coexist.  */
@@ -916,7 +898,7 @@ do {                                                             \
           goto yyerrlab;                                         \
       }                                                          \
     }                                                            \
-} while (YYID (0))
+} while (0)
 
 /* Discard any previous initial lookahead context because of Event,
    which may be a lookahead change or an invalidation of the currently
@@ -939,7 +921,7 @@ do {                                                                     \
                    Event "\n");                                          \
       yy_lac_established = 0;                                            \
     }                                                                    \
-} while (YYID (0))
+} while (0)
 #else
 # define YY_LAC_DISCARD(Event) yy_lac_established = 0
 #endif
@@ -1055,7 +1037,7 @@ yy_lac (yytype_int16 *yyesa, yytype_int16 **yyes,
 #   define yystrlen strlen
 #  else
 /* Return the length of YYSTR.  */
-]b4_c_function_def([yystrlen], [static YYSIZE_T],
+]b4_function_define([yystrlen], [static YYSIZE_T],
    [[const char *yystr], [yystr]])[
 {
   YYSIZE_T yylen;
@@ -1072,7 +1054,7 @@ yy_lac (yytype_int16 *yyesa, yytype_int16 **yyes,
 #  else
 /* Copy YYSRC to YYDEST, returning the address of the terminating '\0' in
    YYDEST.  */
-]b4_c_function_def([yystpcpy], [static char *],
+]b4_function_define([yystpcpy], [static char *],
    [[char *yydest], [yydest]], [[const char *yysrc], [yysrc]])[
 {
   char *yyd = yydest;
@@ -1292,7 +1274,7 @@ yysyntax_error (YYSIZE_T *yymsg_alloc, char **yymsg,
 }
 #endif /* YYERROR_VERBOSE */
 
-]b4_yydestruct_generate([b4_c_function_def])[
+]b4_yydestruct_define[
 
 ]b4_pure_if([], [
 
@@ -1307,13 +1289,13 @@ struct yypstate
 
 static char yypstate_allocated = 0;]])b4_pull_if([
 
-b4_c_function_def([[yyparse]], [[int]], b4_parse_param)[
+b4_function_define([[yyparse]], [[int]], b4_parse_param)[
 {
   return yypull_parse (YY_NULL]m4_ifset([b4_parse_param],
-                                  [[, ]b4_c_args(b4_parse_param)])[);
+                                  [[, ]b4_args(b4_parse_param)])[);
 }
 
-]b4_c_function_def([[yypull_parse]], [[int]],
+]b4_function_define([[yypull_parse]], [[int]],
   [[[yypstate *yyps]], [[yyps]]]m4_ifset([b4_parse_param], [,
   b4_parse_param]))[
 {
@@ -1338,7 +1320,7 @@ b4_c_function_def([[yyparse]], [[int]], b4_parse_param)[
   do {
     yychar = YYLEX;
     yystatus =
-      yypush_parse (yyps_local]b4_pure_if([[, yychar, &yylval]b4_locations_if([[, &yylloc]])])m4_ifset([b4_parse_param], [, b4_c_args(b4_parse_param)])[);
+      yypush_parse (yyps_local]b4_pure_if([[, yychar, &yylval]b4_locations_if([[, &yylloc]])])m4_ifset([b4_parse_param], [, b4_args(b4_parse_param)])[);
   } while (yystatus == YYPUSH_MORE);
   if (!yyps)
     yypstate_delete (yyps_local);
@@ -1346,7 +1328,7 @@ b4_c_function_def([[yyparse]], [[int]], b4_parse_param)[
 }]])[
 
 /* Initialize the parser data structure.  */
-]b4_c_function_def([[yypstate_new]], [[yypstate *]])[
+]b4_function_define([[yypstate_new]], [[yypstate *]])[
 {
   yypstate *yyps;]b4_pure_if([], [[
   if (yypstate_allocated)
@@ -1359,7 +1341,7 @@ b4_c_function_def([[yyparse]], [[int]], b4_parse_param)[
   return yyps;
 }
 
-]b4_c_function_def([[yypstate_delete]], [[void]],
+]b4_function_define([[yypstate_delete]], [[void]],
                    [[[yypstate *yyps]], [[yyps]]])[
 {
 #ifndef yyoverflow
@@ -1397,7 +1379,7 @@ b4_c_function_def([[yyparse]], [[int]], b4_parse_param)[
 | yypush_parse.  |
 `---------------*/
 
-]b4_c_function_def([[yypush_parse]], [[int]],
+]b4_function_define([[yypush_parse]], [[int]],
   [[[yypstate *yyps]], [[yyps]]]b4_pure_if([,
   [[[int yypushed_char]], [[yypushed_char]]],
   [[[YYSTYPE const *yypushed_val]], [[yypushed_val]]]b4_locations_if([,
@@ -1409,12 +1391,7 @@ b4_c_function_def([[yyparse]], [[int]], b4_parse_param)[
 | yyparse.  |
 `----------*/
 
-#ifdef YYPARSE_PARAM
-]b4_c_function_def([yyparse], [int],
-                   [[void *YYPARSE_PARAM], [YYPARSE_PARAM]])[
-#else /* ! YYPARSE_PARAM */
-]b4_c_function_def([yyparse], [int], b4_parse_param)[
-#endif]])[
+]b4_function_define([yyparse], [int], b4_parse_param)])[
 {]b4_pure_if([b4_declare_scanner_communication_variables
 ])b4_push_if([b4_pure_if([], [[
   int yypushed_char = yychar;
@@ -1954,10 +1931,8 @@ yypushreturn:]])[
   if (yymsg != yymsgbuf)
     YYSTACK_FREE (yymsg);
 #endif
-  /* Make sure YYID is used.  */
-  return YYID (yyresult);
+  return yyresult;
 }
-
 ]b4_epilogue[]dnl
 b4_defines_if(
 [@output(b4_spec_defines_file@)@

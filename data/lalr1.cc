@@ -22,7 +22,7 @@ m4_include(b4_pkgdatadir/[c++.m4])
 # --------------------------------------------------------------
 # Declare "parser::yy<TABLE-NAME>_" which contents is CONTENT.
 m4_define([b4_integral_parser_table_declare],
-[m4_ifval([$3], [b4_c_comment([$3], [  ])
+[m4_ifval([$3], [b4_comment([$3], [  ])
 ])dnl
   static const b4_int_type_for([$2]) yy$1_[[]];dnl
 ])
@@ -269,7 +269,7 @@ b4_location_define])])])[
       inline stack_symbol_type ();
 
       /// Constructor.
-      inline stack_symbol_type (]b4_args([state_type s],
+      inline stack_symbol_type (]b4_join([state_type s],
                                          [const semantic_type& v],
                                          b4_locations_if([const location_type& l]))[);
 
@@ -509,7 +509,7 @@ m4_if(b4_prefix, [yy], [],
   {
   }
 
-  ]b4_parser_class_name[::stack_symbol_type::stack_symbol_type (]b4_args(
+  ]b4_parser_class_name[::stack_symbol_type::stack_symbol_type (]b4_join(
                  [state_type s],
                  [const semantic_type& v],
                  b4_locations_if([const location_type& l]))[)
@@ -575,13 +575,13 @@ m4_if(b4_prefix, [yy], [],
     if (m)
       YY_SYMBOL_PRINT (m, sym);
 ]b4_variant_if(
-[[    yystack_.push (stack_symbol_type (]b4_args(
+[[    yystack_.push (stack_symbol_type (]b4_join(
                     [s],
                     [semantic_type()],
                     b4_locations_if([sym.location]))[));
     ]b4_symbol_variant([[yystos_[s]]], [[yystack_[0].value]],
                        [build], [sym.value])],
-[[    yystack_.push (stack_symbol_type (]b4_args(
+[[    yystack_.push (stack_symbol_type (]b4_join(
                       [s],
                       [sym.value],
                       b4_locations_if([sym.location]))[));]])[
@@ -593,7 +593,7 @@ m4_if(b4_prefix, [yy], [],
     if (m)
       YY_SYMBOL_PRINT (m, s);
 ]b4_variant_if(
-[[    yystack_.push (stack_symbol_type (]b4_args(
+[[    yystack_.push (stack_symbol_type (]b4_join(
                        [s.state],
                        [semantic_type()],
                        b4_locations_if([s.location]))[));
@@ -723,9 +723,9 @@ b4_dollar_popdef])[]dnl
         try
         {
 ]b4_lex_symbol_if(
-[          yyla = b4_c_function_call([yylex], [symbol_type],
+[          yyla = b4_function_call([yylex], [symbol_type],
                                      m4_ifdef([b4_lex_param], b4_lex_param));],
-[          yyla.type = yytranslate_ (b4_c_function_call([yylex], [int],
+[          yyla.type = yytranslate_ (b4_function_call([yylex], [int],
                                      [b4_api_PREFIX[STYPE*], [&yyla.value]][]dnl
 b4_locations_if([, [[location*], [&yyla.location]]])dnl
 m4_ifdef([b4_lex_param], [, ]b4_lex_param)));])[
@@ -852,7 +852,7 @@ m4_ifdef([b4_lex_param], [, ]b4_lex_param)));])[
     if (!yyerrstatus_)
       {
         ++yynerrs_;
-        error (]b4_args(b4_locations_if([yyla.location]),
+        error (]b4_join(b4_locations_if([yyla.location]),
                         [[yysyntax_error_ (yystack_[0].state,
                                            yyempty ? yyempty_ : yyla.type)]])[);
       }
@@ -967,7 +967,7 @@ m4_ifdef([b4_lex_param], [, ]b4_lex_param)));])[
   void
   ]b4_parser_class_name[::error (const syntax_error& yyexc)
   {
-    error (]b4_args(b4_locations_if([yyexc.location]),
+    error (]b4_join(b4_locations_if([yyexc.location]),
                     [[yyexc.what()]])[);
   }
 

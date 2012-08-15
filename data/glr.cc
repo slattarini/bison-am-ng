@@ -61,17 +61,17 @@ m4_define([b4_parser_class_name],
 m4_define([b4_parse_param_orig], m4_defn([b4_parse_param]))
 
 
-# b4_yy_symbol_print_generate
+# b4_yy_symbol_print_define
 # ---------------------------
 # Bypass the default implementation to generate the "yy_symbol_print"
 # and "yy_symbol_value_print" functions.
-m4_define([b4_yy_symbol_print_generate],
+m4_define([b4_yy_symbol_print_define],
 [[
 /*--------------------.
 | Print this symbol.  |
 `--------------------*/
 
-]b4_c_ansi_function_def([yy_symbol_print],
+]b4_function_define([yy_symbol_print],
     [static void],
     [[FILE *],      []],
     [[int yytype],  [yytype]],
@@ -94,7 +94,7 @@ m4_append([b4_post_prologue],
 [b4_syncline([@oline@], [@ofile@])[
 ]b4_yylloc_default_define[
 #define YYRHSLOC(Rhs, K) ((Rhs)[K].yystate.yyloc)
-]b4_c_ansi_function_decl([yyerror],
+]b4_function_declare([yyerror],
     [static void],b4_locations_if([
     [[const ]b4_namespace_ref::b4_parser_class_name[::location_type *yylocationp],
                         [yylocationp]],])
@@ -110,7 +110,7 @@ m4_append([b4_epilogue],
 | Report an error.  |
 `------------------*/
 
-]b4_c_ansi_function_def([yyerror],
+]b4_function_define([yyerror],
     [static void],b4_locations_if([
     [[const ]b4_namespace_ref::b4_parser_class_name[::location_type *yylocationp],
                         [yylocationp]],])
@@ -208,8 +208,7 @@ m4_pushdef([b4_parse_param], m4_defn([b4_parse_param_orig]))dnl
 
 #endif
 ]m4_popdef([b4_parse_param])dnl
-b4_namespace_close[
-]])
+b4_namespace_close])
 
 
 # Let glr.c believe that the user arguments include the parser itself.
