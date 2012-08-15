@@ -16,7 +16,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 AM_DIST_FORMATS = gzip xz
-AUTOMAKE_OPTIONS = subdir-objects
 ACLOCAL_AMFLAGS = -I m4
 
 SUBDIRS = po runtime-po .
