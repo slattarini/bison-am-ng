@@ -4,7 +4,6 @@
 /*.flc
 /*.prj
 /.am/
-/.mk/
 /.tarball-version
 /.version
 /ABOUT-NLS
@@ -15,8 +14,8 @@
 /Makefile
 /Makefile.in
 /README-release
-/_*
 /[ab].out
+/_*
 /a.exe
 /aclocal.m4
 /bison-*

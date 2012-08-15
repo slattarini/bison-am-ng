@@ -97,6 +97,7 @@
 /multiarch.m4
 /nls.m4
 /nocrash.m4
+/obstack-printf.m4
 /off_t.m4
 /open.m4
 /pathmax.m4
@@ -181,4 +182,3 @@
 /xalloc.m4
 /xsize.m4
 /xstrndup.m4
-/obstack-printf.m4
